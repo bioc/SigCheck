@@ -1,0 +1,30 @@
+#import(MLInterfaces, Biobase, e1071, BiocParallel)
+
+export(sigCheck)
+export(sigCheckClassifier)
+export(sigCheckRandom)
+export(sigCheckPermuted)
+export(sigCheckKnown)
+export(sigCheckPlot)
+
+#Imports: AnnotationDbi, Biobase, BiocGenerics, BiocParallel, graphics,
+#         IRanges, MLInterfaces, S4Vectors, stats, utils
+
+importMethodsFrom(Biobase, exprs, "exprs<-", featureData, varLabels,
+                  varMetadata)
+
+importMethodsFrom(BiocParallel, bplapply)
+
+importMethodsFrom(MLInterfaces, confuMat, MLearn, plot)
+
+importFrom(graphics, abline, legend, par)
+
+importFrom(MLInterfaces, xvalSpec)
+
+importFrom(stats, ecdf, formula)
+
+importFrom(utils, data)
+
+importFrom(MLInterfaces, svmI)
+
+importFrom(e1071, svm)

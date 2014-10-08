@@ -1,0 +1,448 @@
+%\VignetteIndexEntry{Checking gene expression signatures against random and known signatures with SigCheck}
+%\VignettePackage{SigCheck}
+%\VignetteEngine{utils::Sweave}
+
+\documentclass{article}
+
+<<style, eval=TRUE, echo=FALSE, results=tex>>=
+BiocStyle::latex()
+@ 
+
+\newcommand{\reff}[1]{Figure \ref{fig:#1}}
+
+\begin{document}
+\SweaveOpts{concordance=TRUE}
+
+\newcommand{\exitem}[3]{\item \texttt{\textbackslash#1\{#2\}} #3 \csname#1\endcsname{#2}.}
+\title{Checking gene expression signatures against random and known signatures with \Biocpkg{SigCheck}}
+\author{Justin Norden and Rory Stark}
+
+\date{Edited: October 3, 2014; Compiled: \today}
+
+\maketitle
+
+\tableofcontents
+
+\section{Introduction}
+
+A common task in the analysis of genomic data is the derivation of 
+gene expression signatures that distinguish between phenotypes
+(disease outcomes, molecular subtypes, etc.). 
+However, in their paper "Most random gene expression signatures are 
+significantly associated with breast cancer outcome" \cite{Venet2011}, 
+Venet, Dumont, and Detour point out that while a gene signature may 
+distinguish between two classes of phenotype, their ultimate uniqueness and 
+utility may be limited. They show that while a specialized feature selection 
+process may appear to determine a unique set of predictor genes, the resultant 
+signature may not perform better than one made up of random genes, or genes 
+selected at random from all differentially expressed genes. This suggests that 
+the genes in the derived signature may not be particularly informative as to 
+underlying biological mechanisms. 
+They further show that gene sets that comprise published signatures for a wide 
+variety of phenotypic classes may perform just as well at predicting arbitrary 
+phenotypes; famously, they show that a gene signature that distinguishes 
+postprandial laughter performs as well at predicting the outcome of breast
+cancers as well as a widely-cited signature \cite{vantveer}.
+
+The \Biocpkg{SigCheck} package was developed in order to make it easy to check 
+a gene signature against random and known signatures, and assess the unique 
+ability of that signature. 
+It additionally provides the ability to check a signature's performance against
+permuted data as a reality check that it is detecting a genuine signal 
+in the original data. 
+This vignette shows the process of performing the checks.
+
+\section{Example: NKI Breast Cancer Data and the van't Veer Signature}
+
+In order to use \Biocpkg{SigCheck}, you must provide a) some data 
+(an expression matrix), b) some metadata (feature names and class identifiers), 
+and c) a gene signature (a subset of the features). 
+For this vignette, we will use the NKI Breast Cancer dataset 
+\Biocexptpkg{breastCancerNKI} and the associated van't Veer signature that 
+predicts the likelihood that a patient will develop a distant metastases 
+\cite{vantveer}. 
+
+The dataset can be loaded as follows:
+<<loadData, eval=TRUE, keep.source=TRUE>>=
+library(breastCancerNKI)
+data(nki)
+nki
+@
+
+As can be seen, the \Rcode{nki} data is encapsulated in an 
+\Robject{ExpressionSet} object. At its core, it contains an expression matrix 
+consisting of 24,481 features (microarray probes mapped to genes) and 
+337 samples (derived from tumor tissue taken from breast cancer patients). 
+Included is phenotypical (clinical) metadata regarding the patients, 
+including age of the patient, tumor grade, expression status of the 
+ER, PR, and HER2 biomarkers, presence of a BRCA mutation, etc:
+
+<<showPhenoData, eval=TRUE, keep.source=TRUE>>=
+varLabels(nki)
+@
+
+The signatures derived by \cite{vantveer} and \cite{vandevijver} are used to 
+predict the Distant Metastasis-Free Survival (DMFS) time. 
+This is presented as a continuous measure indicating the time until the 
+occurrence of a distant metastasis:
+
+<<tDMFS, eval=TRUE, keep.source=TRUE>>=
+nki$t.dmfs
+@
+
+DMFS is also presented as a binary class, with a cutoff used to distinguish 
+between patients that had a recurrence event and those that did not:
+
+<<eDMFS, eval=TRUE, keep.source=TRUE>>=
+nki$e.dmfs
+@
+
+While the derived signatures were used as part of a survival analysis using the 
+continuous measure, \Biocpkg{SigCheck} uses a pure classification model and 
+hence relies on the binary measure instead. A number of patient samples do not 
+have DMFS data available, so the first step is to exclude these patients from
+our analysis, which brings the number of samples down to 319:
+
+<<excludeNA, eval=TRUE, keep.source=TRUE>>=
+dim(nki)
+nki <- nki[,!is.na(nki$e.dmfs)]
+dim(nki)
+@
+
+The next step is to provide a gene signature to check. A core function of 
+\Biocpkg{SigCheck} is to compare the performance of a gene signature with the 
+performance of known gene signatures against the same data set. To accomplish 
+this, it includes several sets of known signatures. One of these included 
+signatures is the van't Veer signature, which we will use for this example.
+
+To load the known gene signatures that are included with \Biocpkg{SigCheck}:
+
+<<loadKnown, eval=TRUE, keep.source=TRUE>>=
+library(SigCheck)
+data(knownSignatures)
+names(knownSignatures)
+@
+
+There are five sets of gene signatures, including a set of cancer signatures. 
+The van't Veer signature is one of the signatures in the known cancer 
+gene signature set:
+
+<<getVANTVEER, eval=TRUE, keep.source=TRUE>>=
+names(knownSignatures$cancer)
+vantveer <- knownSignatures$cancer$VANTVEER
+vantveer
+@
+
+The signature is provided in the form of symbolic gene names. These will need 
+to be matched up with the feature names in the \Robject{ExpressionSet}. 
+While the default annotation is a probe identifier, the \Rcode{nki} dataset
+provides a number of alternative annotations:
+
+<<showFeatureAnno, eval=TRUE, keep.source=TRUE>>=
+fvarLabels(nki)
+@
+
+We'll be using the \Rcode{"HUGO.gene-symbol"} to match the gene names in the 
+van't Veer signature.
+
+\subsection{Running with a validation set}
+
+Optimally, when deriving and testing a gene signature, there are distinct sets
+of training samples and validation samples, with the validation samples kept 
+separate from the process used to derive the gene signature. For this example,
+we are going to assume that the final 45 samples comprise the validation set. 
+With this assumption, all required elements have been identified for an analysis. 
+
+\Biocpkg{SigCheck} provides a high-level function, \Rfunction{sigCheck}, 
+that will run all the checks and plot the results. 
+This function accepts the expression and metadata in the form of an 
+\Robject{ExpressionSet}; an indication of which metadata field should be used 
+to define the two classes and which should be used as the annotation for the 
+features; a gene signature to check; and an indication of which samples 
+should be treated as the validation set. There are additional optional parameters
+that default to sensible values. For example, rather than using the default 
+set of \Sexpr{length(knownSignatures$cancer)} cancer signatures from
+\cite{Venet2011}, a larger set of \Sexpr{length(knownSignatures$c6.oncogenic)} 
+from \Rcode{MSigDB} (\cite{MSigDB}) is specified. 
+\Rfunction{sigCheck} also accepts the number of iterations to run for the 
+random and permuted checks; this is set to a low number (10) by default to
+ensure a quick run, but in general should be set higher for more 
+reliable p-values.
+
+<<sigCheck1, eval=FALSE, keep.source=TRUE>>=
+nkiResults <- sigCheck(nki, classes="e.dmfs", annotation="HUGO.gene.symbol",
+                   signature=vantveer, validationSamples=275:319, 
+                   knownSignatures="c6.oncogenic",nIterations=1000)
+@
+
+Rather than run the 1,000 iterations in the vignette, a results list is 
+included for a run of \Rfunction{sigCheck} with \Rcode{nIterations=1000}:
+
+<<loadResults, eval=TRUE, keep.source=TRUE>>=
+data(nkiResults)
+@
+
+\Rfunction{sigCheck} generates four plots, each showing how the baseline and 
+mode performance compares to the distribution of results for a specific check. 
+The results are best interpreted by looking more closely at what happens when
+\Rfunction{sigCheck} is invoked.
+
+\subsection{\Rfunction{sigCheckClassifier}}
+
+The first step is to assess the baseline performance of the identified signature.
+This is accomplished by a call to \Rfunction{sigCheckClassifier}, which uses 
+the features identified in the signature on the training samples (all the 
+samples not designated as validation samples) to train a classifier based on 
+the phenotypic categories. In this case, 274 samples are used to train the 
+classifier, utilizing the default machine learning method 
+(a support vector machine). 
+Next, the classifier is used to predict the phenotype of the validation samples
+(45 samples in this case). The results can be seen as follows:
+
+<<classifierResults, eval=TRUE, keep.source=TRUE>>=
+nkiResults$checkClassifier
+@
+
+The baseline performance of the signature is the proportion of validation 
+samples that are correctly classified; in this case, that value is 
+\Sexpr{as.numeric(format(nkiResults$checkClassifier$sigPerformance,digits=3))} 
+(\Sexpr{nkiResults$checkClassifier$confusion[1,1]+nkiResults$checkClassifier$confusion[2,2]} out of 45). 
+The confusion matrix breaks this down in more detail, showing the numbers of 
+true and false positives as well as true and false negatives.
+
+\Rfunction{sigCheckClassifier} also computes the performance of a theoretical 
+"mode" classifier. This is the performance that would result if the classifier 
+always made the same prediction, no matter what the data. The prediction is 
+equal to the phenotype category that appears most often in the training set. 
+In the current example, more samples in the training set come from patients 
+who do not experience a metastatic recurrence:
+
+<<mode1, eval=TRUE, keep.source=TRUE>>=
+sum(nki$e.dmfs[1:274]==0)
+sum(nki$e.dmfs[1:274]==1)
+@
+
+so the mode classifier would always predict 0. In the validation set, an even
+higher proportion of the samples come from patients who do not experience a 
+relapse:
+
+<<mode2, eval=TRUE, keep.source=TRUE>>=
+sum(nki$e.dmfs[274:319]==0)
+sum(nki$e.dmfs[274:319]==1)
+@
+
+yielding a mode performance of 
+\Sexpr{format(nkiResults$checkClassifier$modePerformance,digits=3)}.
+
+In each of the results plots, the signature classifier performance is 
+indicated by a solid red vertical line, while the mode classifier performance 
+is indicated by a dotted red vertical line. A p-value is also provided, based
+on the null hypothesis that the signature classifier is no better at 
+predicting phenotype than the classifiers being checked, as follows:
+
+\subsection{\Rfunction{sigCheckRandom}}
+
+<<sigCheckNKIRandom, fig=TRUE, echo=FALSE, include=FALSE, width=9, height=6 >>=
+sigCheckPlot(nkiResults[[2]])
+@
+\incfig{SigCheck-sigCheckNKIRandom}{.66\textwidth}{Results of 
+\Rfunction{sigCheck} for NKI Breast Cancer dataset checking v'ant Veer 
+signature against 1,000 random gene signatures.}
+{(Generated using \Rcode{data(nkiResults)})}
+
+The first check is to compare the performance of the signature against 
+signatures randomly sampled from the dataset. This gives insight into the 
+success of the feature selection process by which the set of features was honed. 
+The number of features in each random signature is equal to the number of 
+features in the identified signature. Figure~\ref{SigCheck-sigCheckNKIRandom} 
+shows the performance of the v'ant Veer signature on the NKI breast cancer 
+dataset compared to 1,000 randomly selected signatures. The mean performance of 
+the random signatures is equal to that of the mode signature.
+While the identified signature performance is better than this, some 
+\Sexpr{sum(nkiResults$checkRandom$performance >= nkiResults$checkClassifier$sigPerformance)} 
+of the random signatures 
+perform as well \emph{or better} than the identified signature. 
+The resulting p-value indicates that the identified signature does not 
+perform significantly better than random signatures. 
+
+\warning{this should not be taken to suggest that selecting a random
+signature with better performance on the validation set is a good idea, 
+as it will almost certainly represent an \emph{over-fitting} to the 
+validation samples.
+Indeed, performance on validation samples should \emph{never} be used 
+in selecting features for a signature.}
+
+\subsection{\Rfunction{sigCheckKnown}}
+
+<<sigCheckNKIKnown, fig=TRUE, echo=FALSE, include=FALSE, width=9, height=6 >>=
+sigCheckPlot(nkiResults[[3]])
+@
+\incfig{SigCheck-sigCheckNKIKnown}{.66\textwidth}{Results of 
+\Rfunction{sigCheck} for NKI Breast Cancer dataset checking 
+v'ant Veer signature against \Sexpr{length(knownSignatures$c6.oncogenic)} 
+known cancer gene signatures.}{(Generated using \Rcode{data(nkiResults)})}
+
+The next check is to compare the performance of the signature against 
+known gene signatures that have been used to predict other phenotypes.  
+Figure~\ref{SigCheck-sigCheckNKIKnown} shows how the performance of the 
+v'ant Veer signature compares to other known cancer-related signatures at 
+classifying the validation samples. While performance overall of the known 
+signatures is skewed higher than for random signatures, the mode performance
+is equal to the mean performance of the known signatures, and the signature 
+being checked is not among the very best performers. Indeed, some 
+\Sexpr{format(sum(nkiResults$checkKnown$performance >= nkiResults$checkClassifier$sigPerformance)/length(nkiResults$checkKnown$performance)*100,digits=2)}\% of 
+the known signatures perform as well \emph{or better} than the 
+identified signature. The resulting p-value indicates that the specified 
+signature does not perform significantly better than the set of known cancer
+signatures as a whole.
+
+The previously identified signatures that outperform the derived signature 
+can be identified as follows:
+
+<<perfKnown, eval=TRUE, keep.source=TRUE>>=
+knownHigh <- nkiResults$checkKnown$performanceKnown > 
+               nkiResults$checkClassifier$sigPerformance
+nkiResults$checkKnown$performanceKnown[knownHigh]
+@
+
+\subsection{\Rfunction{sigCheckPermuted}}
+<<sigCheckNKIPermuteFeature, fig=TRUE, echo=FALSE, include=FALSE, width=9, height=6 >>=
+sigCheckPlot(nkiResults[[4]])
+@
+\incfig{SigCheck-sigCheckNKIPermuteFeature}{.66\textwidth}{Results of 
+\Rfunction{sigCheck} for NKI Breast Cancer dataset checking v'ant Veer 
+signature using permuted expression data}{(Generated using 
+\Rcode{data(nkiResults)})}
+
+<<sigCheckNKIPermuteCategory, fig=TRUE, echo=FALSE, include=FALSE, width=9, height=6 >>=
+sigCheckPlot(nkiResults[[5]])
+@
+\incfig{SigCheck-sigCheckNKIPermuteCategory}{.66\textwidth}{Results of
+\Rfunction{sigCheck} for NKI Breast Cancer dataset checking v'ant Veer 
+signature using permuted category assignments}{(Generated using 
+\Rcode{data(nkiResults)})}
+
+The final two plots show the results of running \Rfunction{sigCheckPermuted}
+with two different parameter settings. These represent a sort of reality check 
+by seeing how the gene signature performs on randomly permuted data. 
+
+In the first check, the expression values for each feature (specific rows in 
+the expression matrix) are permuted, so the expression values are maintained but
+assigned randomly to samples. Each feature is permuted independently. 
+Figure~\ref{SigCheck-sigCheckNKIPermuteFeature} shows the results. 
+For most of the datasets permuted in this manner, the performance of the 
+signature is equal to that of the mode classifier, as the best strategy in 
+the face of such noisy data is to always predict the most frequent phenotype.
+In a small number of cases the performance of the signature is as good or 
+even better on permuted data than on the real data, but this is 
+expected by chance. Only 
+\Sexpr{sum(nkiResults$checkPermutedFeatures$performance >= nkiResults$checkClassifier$sigPerformance)} 
+of the permuted datasets 
+enable performance as good or better than using the original data. 
+The empirical p-value indicates that the specified gene signature performs 
+significantly better on the real data than on the permuted data.
+
+For the second check, the phenotype category assignments are permuted 
+across the samples. Figure~\ref{SigCheck-sigCheckNKIPermuteCategory} 
+shows the results. 
+Similar to datasets permuted by features, 
+the performance of the signature equals that of the mode classifier. 
+Likewise,the signature is as good or even better on 
+permuted data than on the real data in some cases, as expected by chance. 
+Only a few (
+\Sexpr{sum(nkiResults$checkPermutedCategories$performance >= nkiResults$checkClassifier$sigPerformance)} 
+) enable performance as good or better than using the original data, with a
+resulting p-value indicating that the specified signature performs significantly 
+better using the correct outcomes rather than randomly assigned ones.
+
+\subsection{Running without a separate validation set using leave-one-out
+cross-validation on the training set}
+
+In the sample so far, we have assumed the presence of a validation set separate 
+from the training samples used to derive the gene signature.
+While this represents the optimal methodology, when a signature is being 
+developed, there may not yet be a validation set. In this case, a computational 
+strategy known as leave-one-out cross-validation (LOO-XV) will automatically be
+employed by \Biocpkg{SigCheck}. Instead of using all the training samples to 
+construct a single classifier, a separate classifier is trained for each sample,
+using all the other samples. In the current example, if no validation samples
+are specified, 319 classifiers will be trained, each being used to predict the
+phenotype category of a single sample using the remaining 318 samples.
+When checking against other (random or known) signatures, or permuted datasets,
+each signature or dataset would require 319 classifiers to be trained. This can
+be computationally intensive (see note below on use of parallel computation in
+this case).
+
+For example, the performance of the signature over all of the samples can be 
+computed using LOO-XV:
+
+<<loo, eval=TRUE, keep.source=TRUE>>=
+results <- sigCheckClassifier(nki, classes="e.dmfs", 
+                             signature=vantveer, 
+                             annotation="HUGO.gene.symbol")
+results
+@
+
+Note that the mode performance is worse over the entire training set as the 
+numbers of patients in each category are more blanaced. 
+
+\section{Technical notes}
+
+\subsection{Use of \Biocpkg{BiocParallel} and \Rpackage{parallel}}
+
+This note shows how to control the parallel processing in \Biocpkg{SigCheck}.
+
+There are two different aspects of \Biocpkg{SigCheck} that are able to exploit
+parallel processing. The primary one is when multiple signatures or datasets 
+are being evaluated independently. This include the \Rcode{nIterations} random
+signatures in \Rfunction{sigCheckRandom}, the database of known signatures in 
+\Rfunction{sigCheckKnown}, and the \Rcode{nIterations} permuted datasets in 
+\Rfunction{sigCheckPermuted}. In this case, the \Biocpkg{BiocParallel} package 
+is used to carry out these comparisons in parallel. By default, 
+\Biocpkg{BiocParallel} uses \Rpackage{parallel} to run in multicore mode, 
+but it can also be configured to schedule a compute task across multiple 
+computers. In the default multicore mode, it will use all of the cores on 
+your system, which can result in a heavy load (especially if there is 
+inadequate memory). You can manually set the number of cores to use as follows:
+
+
+<<multicoreparam, eval=TRUE, keep.source=TRUE>>=
+CoresToUse <- 6
+library(BiocParallel)
+mcp <- MulticoreParam(workers=CoresToUse)
+register(mcp, default=TRUE)
+@
+
+which limits the number of cores in use at any one time to six. 
+If you want to use only one core (serial mode), you can set 
+\Rcode{CoresToUse <- 1}, or \Rcode{register(SerialParam())}.
+
+The other aspect of processing that can use multiple processor cores is when
+performing leave-one-out cross-validation (LOO-XV). In this case, the 
+underlying \Biocpkg{MLInterfaces} package takes care of the parallelization
+using the \Rpackage{parallel} package. You can set the number of cores that 
+will be used for this as follows:
+
+<<setcores, eval=TRUE, keep.source=TRUE>>=
+options(mc.cores=CoresToUse)
+@
+
+Note that in the LOO-XV case, as every random or known signature, or permuted
+dataset, requires parallel evaluation of cross-validated classifiers, the
+parallelization at the level of \Rcode{nIterations} is disabled automatically.
+
+\section{Acknowledgements}
+
+We would like to acknowledge everyone in the Bioinformatics Core at 
+Cancer Research UK's Cambridge Institute at the University of Cambridge, 
+as well as members of the Ponder group (particularly Kerstin Meyer), 
+for their support and contributions.
+
+\section{Session Info}
+<<sessionInfo, results=tex, print=TRUE, eval=TRUE>>=
+toLatex(sessionInfo())
+@
+
+\bibliography{SigCheck}
+
+\end{document}
