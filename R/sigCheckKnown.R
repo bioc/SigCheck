@@ -70,6 +70,22 @@ sigCheckKnown <- function(expressionSet, classes, signature, annotation,
     sortScores <- sort(allScoreValues, decreasing=TRUE)
     #   Max as if there are multiple matches -- mean instead
     geneListRank <- mean(which(sortScores == classifierScore))
+    
+    #check matching features
+    sigfeatures = NULL
+    for(sig in knownSignatures) {
+        sigfeatures = unique(c(sigfeatures,sig))
+    }
+    matches <- sigfeatures %in% .sigCheckSignature(expressionSet, signature, 
+                                                annotation,bReturnFeatures=TRUE)
+    if(sum(matches) < length(sigfeatures)) {
+        warning(
+            sprintf("NOTE: %d unmatched features in known signatures (out of %d)",
+                        length(sigfeatures)-sum(matches),length(sigfeatures)),
+            call.=FALSE)   
+    }
+    
+    #return
     nullPerf <- 
         .sigCheckClassifierNull(expressionSet, classes, validationSamples)
     output <- list(sigPerformance=classifierScore, modePerformance=nullPerf,

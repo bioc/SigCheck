@@ -37,8 +37,16 @@ sigCheckPlot <- function(checkResults,...){
         xmax <- max(uscores,checkResults$sigPerformance,
                     checkResults$modePerformance)    
         pval <- 1 - (sum(checkResults$sigPerformance > scores)/length(scores))
-        rankstr <- sprintf("Percentile:%.2f (Tests:%d  p=%1.4f)",
-                           ecdf(scores)(checkResults$sigPerformance),
+        accuracy = ceiling(log10(length(scores)))
+        if(pval > 0) {
+            rankstr = sprintf("Percentile:%%.2f (Tests:%%d  p=%%1.%df)",
+                              accuracy)
+        } else {
+            rankstr = sprintf("Percentile:%%.2f (Tests:%%d  p<%%1.%df)",
+                              accuracy)
+            pval = 1/(10^accuracy)
+        }
+        rankstr <- sprintf(rankstr,ecdf(scores)(checkResults$sigPerformance),
                            length(scores),pval)
         plot(uscores,numscore,xlab="Performance",ylab="Frequency",type="b",
              xlim=c(xmin,xmax),
