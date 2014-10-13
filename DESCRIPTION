@@ -2,7 +2,7 @@ Package: SigCheck
 Type: Package
 Title: Check a gene signature's classification performance against
         random signatures, permuted data, and known signatures.
-Version: 1.0.0
+Version: 1.1.0
 Author: Justin Norden <jn333@cam.ac.uk> and Rory Stark
         <rory.stark@cruk.cam.ac.uk>
 Maintainer: Rory Stark <rory.stark@cruk.cam.ac.uk>
