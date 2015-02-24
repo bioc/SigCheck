@@ -15,7 +15,7 @@ importMethodsFrom(Biobase, exprs, "exprs<-", featureData, varLabels,
 
 importMethodsFrom(BiocParallel, bplapply)
 
-importMethodsFrom(MLInterfaces, confuMat, MLearn, plot)
+importMethodsFrom(MLInterfaces, confuMat, MLearn)
 
 importFrom(graphics, abline, legend, par)
 

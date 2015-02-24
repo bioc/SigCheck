@@ -160,10 +160,11 @@ This function accepts the expression and metadata in the form of an
 to define the two classes and which should be used as the annotation for the 
 features; a gene signature to check; and an indication of which samples 
 should be treated as the validation set. There are additional optional parameters
-that default to sensible values. For example, rather than using the default 
-set of \Sexpr{length(knownSignatures$cancer)} cancer signatures from
-\cite{Venet2011}, a larger set of \Sexpr{length(knownSignatures$c6.oncogenic)} 
-from \Rcode{MSigDB} (\cite{MSigDB}) is specified. 
+that default to sensible values. For example, 
+% rather than using the default 
+% set of \Sexpr{length(knownSignatures$cancer)} cancer signatures from
+% \cite{Venet2011}, a larger set of \Sexpr{length(knownSignatures$c6.oncogenic)} 
+% from \Rcode{MSigDB} (\cite{MSigDB}) is specified. 
 \Rfunction{sigCheck} also accepts the number of iterations to run for the 
 random and permuted checks; this is set to a low number (10) by default to
 ensure a quick run, but in general should be set higher for more 
@@ -172,7 +173,7 @@ reliable p-values.
 <<sigCheck1, eval=FALSE, keep.source=TRUE>>=
 nkiResults <- sigCheck(nki, classes="e.dmfs", annotation="HUGO.gene.symbol",
                    signature=vantveer, validationSamples=275:319, 
-                   knownSignatures="c6.oncogenic",nIterations=1000)
+                   knownSignatures="cancer",nIterations=1000)
 @
 
 Rather than run the 1,000 iterations in the vignette, a results list is 
@@ -279,7 +280,7 @@ sigCheckPlot(nkiResults[[3]])
 @
 \incfig{SigCheck-sigCheckNKIKnown}{.66\textwidth}{Results of 
 \Rfunction{sigCheck} for NKI Breast Cancer dataset checking 
-v'ant Veer signature against \Sexpr{length(knownSignatures$c6.oncogenic)} 
+v'ant Veer signature against \Sexpr{length(knownSignatures$cancer)} 
 known cancer gene signatures.}{(Generated using \Rcode{data(nkiResults)})}
 
 The next check is to compare the performance of the signature against 
