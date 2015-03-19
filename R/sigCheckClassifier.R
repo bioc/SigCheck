@@ -60,6 +60,9 @@ sigCheckClassifier <- function(expressionSet, classes, signature,
 }
 
 .sigCheckClassifierNull <- function(expressionSet, classes, validationSamples){
+    if(missing(validationSamples)) {
+        validationSamples <- xvalSpec("LOO")
+    }
     category <- which(varLabels(expressionSet) %in% classes)
     catVals <- unique(expressionSet[[category]])
     if(class(validationSamples) == 'xvalSpec'){

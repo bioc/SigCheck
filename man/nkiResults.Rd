@@ -23,7 +23,7 @@ data(knownSignatures)
 nkiResults = sigCheck(nki, classes="e.dmfs", annotation="HUGO.gene.symbol",
                    signature=knownSignatures$cancer$VANTVEER,
                    validationSamples=275:319, 
-                   knownSignatures="c6.oncogenic",nIterations=1000)
+                   knownSignatures="cancer",nIterations=1000)
 }
 
 # Example usage of nkiResults
