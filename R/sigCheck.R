@@ -1,75 +1,134 @@
-# Test Classification Potential of Gene Signature as compared to randomly 
-# selected gene signatures, permuted expression sets
-# and known gene signatures.
-# 
-# Compares how an input gene signature classifies an expression set object. 
-# As default performs a leave
-# one out analysis, if a validation set is not provided.
+sigCheck <- function(expressionSet, classes, survival, signature, 
+                     annotation, validationSamples, 
+                     scoreMethod="PCA1", threshold=median,
+                     classifierMethod=svmI, modeVal,
+                     survivalLabel="Survival", timeLabel="Time",
+                     plotTrainingKM=TRUE, plotValidationKM=TRUE){
+    
+    if(missing(validationSamples)) {
+        validationSamples <- numeric(0)
+    }
+    if(missing(annotation)) {
+        annotation <- ""
+    }
+    if(missing(survival)) {
+        survival <- ""
+    }
+    if(missing(survivalLabel)) {
+        survivalLabel <- survival
+    }
+    if(missing(timeLabel)) {
+        timeLabel <- ""
+    }
+    if(missing(timeLabel)) {
+        timeLabel <- "Time"
+    }
+    if(missing(modeVal)) {
+        modeVal <- ""
+    }
+    
+    result = as(expressionSet,"SigCheckObject")
+    result@classes <- classes
+    result@annotation <- annotation
+    result@survival <- survival
+    result@signature <- signature
+    result@validationSamples <- validationSamples
+    result@threshold <- threshold
+    result@classifierMethod <- classifierMethod
+    result@survivalLabel <- survivalLabel
+    result@timeLabel <- timeLabel
+    result@survivalMethod <- scoreMethod
+    result@modeVal <- modeVal
+    
+    if(scoreMethod=="classifier") {
+        if(missing(survival)) {
+            result@survival <- ""
+        } else {
+            result@survival <- survival
+        }
+        
+        result@checkType <- "Classifier"
+        result <- sigCheckClassifier(result,
+                                     plotTrainingKM=plotTrainingKM,
+                                     plotValidationKM=plotValidationKM)
+    } else if(scoreMethod!="classifier")  {
+        if(survival=="") {
+            stop("Must specify a survival label.")
+        } else {
+            result@survival  <- survival
+            result@checkType <- "Survival"
+        }
+        result <- sigCheckSurvival(result,
+                                   modeVal=modeVal,
+                                   plotTrainingKM=plotTrainingKM,
+                                   plotValidationKM=plotValidationKM)       
+    } else {
+        stop("Invalid scoreMethod: [",scoreMethod,"]")
+    }
+    
+    return(result)
+}
 
-sigCheck <- function(expressionSet, classes, signature, annotation, 
-                     validationSamples, 
-                     classifierMethod=svmI, nIterations=10, 
-                     knownSignatures="cancer", plotResults=TRUE){
+
+sigCheckAll <- function(check,
+                        iterations=10, 
+                        known="cancer",
+                        plotResults=TRUE, ...){
     
-    expressionSet <- .sigCheckNA(expressionSet)
-    
-    signature <- .sigCheckSignature(expressionSet, signature, annotation)
-    
-    print('Check classifier for baseline performance...')
-    classifierScores <- 
-        sigCheckClassifier(expressionSet=expressionSet, classes=classes, 
-                           signature=signature,annotation=annotation,
-                           classifierMethod=classifierMethod, 
-                           validationSamples=validationSamples)
-    geneSigPercentCorrect <- classifierScores$sigPerformance
-    geneSigConfusionMatrix <- classifierScores$confusion
-    
-    print('Check random signatures...')
+    message('Check random signatures...')
     randomGeneOutput  <-
-        sigCheckRandom(expressionSet=expressionSet, classes=classes, 
-                       signature=signature,annotation=annotation,
-                       classifierMethod=classifierMethod, 
-                       validationSamples=validationSamples,
-                       nIterations=nIterations,
-                       classifierScore=geneSigPercentCorrect)
-    print('Check known signatures...')
+        sigCheckRandom(check,iterations=iterations)
+    
+    
+    message('Check known signatures...')
     knownGenesOutput  <- 
-        sigCheckKnown(expressionSet=expressionSet, classes=classes, 
-                      signature=signature,annotation=annotation,
-                      classifierMethod=classifierMethod, 
-                      validationSamples=validationSamples,
-                      classifierScore=geneSigPercentCorrect,
-                      knownSignatures=knownSignatures)
-    print('Check permuted features...')
-    permuteRowsOutput <- 
-        sigCheckPermuted(expressionSet=expressionSet, classes=classes, 
-                         signature=signature, annotation=annotation,
-                         classifierMethod=classifierMethod, 
-                         validationSamples=validationSamples,
-                         nIterations=nIterations,
-                         classifierScore=geneSigPercentCorrect,
-                         toPermute="features")
+        sigCheckKnown(check,known=known)
     
-    print('Check permuted categories...')
-    permuteCategoriesOutput <- 
-        sigCheckPermuted(expressionSet=expressionSet, classes=classes, 
-                         signature=signature, annotation=annotation,
-                         classifierMethod=classifierMethod,
-                         validationSamples=validationSamples,
-                         nIterations=nIterations,
-                         classifierScore=geneSigPercentCorrect,
-                         toPermute="categories")    
+    toPermute <- "categories"
+    if(check@checkType=="Survival" || check@survival!="") {
+        nosurv <- FALSE
+        toPermute = c(toPermute,"survival")
+    } else {
+        nosurv <- TRUE
+        toPermute = c(toPermute,"features")
+    }
     
-    output <- list(checkClassifier=classifierScores,
-                   checkRandom=randomGeneOutput,
-                   checkKnown=knownGenesOutput,
-                   checkPermutedFeatures=permuteRowsOutput,
-                   checkPermutedCategories=permuteCategoriesOutput
-    )
+    
+    message(sprintf("Check permuted: [%s]...",toPermute[1]))   
+    permute1Output <- 
+        sigCheckPermuted(check, toPermute=toPermute[1],
+                         iterations=iterations)
+    message(sprintf("Check permuted: [%s]...",toPermute[2]))   
+    permute2Output <- 
+        sigCheckPermuted(check, toPermute=toPermute[2],
+                         iterations=iterations) 
+    
+    if(toPermute[2]=="survival") {
+        output <- list(checkRandom=randomGeneOutput,
+                       checkKnown=knownGenesOutput,
+                       checkPermutedCategories=permute1Output,
+                       checkPermutedSurvival=permute2Output)
+    } else {
+        output <- list(checkRandom=randomGeneOutput,
+                       checkKnown=knownGenesOutput,
+                       checkPermutedCategories=permute1Output,
+                       checkPermutedFeatures=permute2Output)        
+    }
     
     if(plotResults) {
+        savemfrow = par("mfrow")        
         par(mfrow=c(2,2))
-        sigCheckPlot(output)
+        
+        if(check@checkType=="Classifier") {
+            sigCheckPlot(output,classifier=TRUE,...)
+        }
+        
+        if(!nosurv) {
+            sigCheckPlot(output,classifier=FALSE,...)
+        }
+        
+        par(mfrow=savemfrow)
     }
+    
     return(output)
 }

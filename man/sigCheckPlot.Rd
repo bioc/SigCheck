@@ -1,56 +1,73 @@
 \name{sigCheckPlot}
 \alias{sigCheckPlot}
-%- Also NEED an '\alias' for EACH other topic documented here.
 \title{
-Plot results of a signature check
+Plot results of a signature check or set of checks
 }
 \description{
-Plots a histogram of the classification performance scores for a check, showing 
-how it compares to classification performance of the signature being checked, 
-as well as to a hypothetical classifier that uses the mode of the training 
-samples.
+Plots results of a signature check, as returned by \code{\link{sigCheckRandom}},
+\code{\link{sigCheckKnown}}, \code{\link{sigCheckPermuted}}, or 
+\code{\link{sigCheckAll}}.
 }
+
 \usage{
-sigCheckPlot(checkResults, ...)
+sigCheckPlot(checkResults, classifier=FALSE, ...)
 }
-%- maybe also 'usage' for other objects documented here.
+
 \arguments{
   \item{checkResults}{
-The list value returned by \code{\link{sigCheckRandom}}, 
-\code{\link{sigCheckKnown}}, or \code{\link{sigCheckPermuted}} 
-(or one the elements of the list returned by \code{\link{sigCheck}}).
-
-Can also be the list returned by \code{\link{sigCheck}}, which which case 
-each of the four results lists will be plotted in turn.
+The list  returned by \code{\link{sigCheckRandom}}, 
+\code{\link{sigCheckKnown}}, \code{\link{sigCheckPermuted}},
+or \code{\link{sigCheck}}. 
+}
+\item{classifier}{
+If a classifier was used in the original call to \code{\link{sigCheck}}, setting this
+to \code{TRUE} will result in a plot showing how the primary signature compares
+based on classification performance (rather than survival).
 }
   \item{\dots}{
 Additional arguments to be passed to the \code{\link{plot}} function.
 }
 }
 \details{
-Draws a line plot version of a histogram, with the x-axis representing the 
+For results based on survival analysis, the background distribution of p-values
+derived from the check (either random signatures, known signatures, or performance
+using permuted data) is plotted. Up to two vertical red lines are also plotted: a solid red line representing the performance of the primary signature/data, 
+and a dotted red line representing a p-value of 0.05. 
+One or both of these may be missing if their performance falls outside the range
+of the background distributions.
+
+For results based on classification performance, a line plot version of a histogram
+of background performance is plotted, with the x-axis representing the 
 range of classification performance scores computed in the check, and the
 y-axis representing how many times that score was obtained. In addition, 
 vertical lines are plotted representing the classification performance of
 the originally specified signature (solid red line) and the performance of 
 a classifier that always predicts the mode value of the training samples
 (dotted red line).
+
+If the results of \code{\link{sigCheckAll}} is passed in, all four results
+plots are generated in a 2x2 grid.
 }
 \value{
 none
 }
 
 \note{
-By default, \code{\link{sigCheck}} will call this function for all 
-checks it runs.
+For survival results, better performance results in the solid red line being to the left of the background distribution, indicating a lower-value.
+For classification results, better performance results in the solid red line being to
+the right of the background distribution, indicating superior classification
+performance.
 }
 \author{
 Rory Stark with Justin Norden
 }
 
 \seealso{
-\code{\link{sigCheck}},  \code{\link{sigCheckRandom}}, 
-\code{\link{sigCheckKnown}}, \code{\link{sigCheckPermuted}}
+\code{\link{sigCheck}}, 
+\code{\link{sigCheckAll}},
+\code{\link{sigCheckRandom}}, 
+\code{\link{sigCheckKnown}}, 
+\code{\link{sigCheckPermuted}}
 }
 
 \examples{
@@ -58,9 +75,16 @@ library(breastCancerNKI)
 data(nki)
 nki <- nki[,!is.na(nki$e.dmfs)]
 data(knownSignatures)
-results <- sigCheckRandom(nki, classes="e.dmfs", 
-                          signature=knownSignatures$cancer$VANTVEER, 
-                          annotation="HUGO.gene.symbol", 
-                          validationSamples=275:319, nIterations=25)
+
+## survival analysis with separate training and validation using SVM
+check <- sigCheck(nki, classes="e.dmfs", survival="t.dmfs",
+                  signature=knownSignatures$cancer$VANTVEER,
+                  annotation="HUGO.gene.symbol",
+                  validationSamples=250:319,
+                  scoreMethod="classifier", threshold=.33) 
+                  
+results <- sigCheckRandom(check,iterations=20)
+par(mfrow=c(1,2))
 sigCheckPlot(results)
+sigCheckPlot(results, classifier=TRUE)
 }

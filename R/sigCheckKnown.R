@@ -6,110 +6,207 @@
 # Known gene signatures can either be passed in, or if not the package will 
 # test against 48 known signatures from the v'ant Veer paper.
 
-sigCheckKnown <- function(expressionSet, classes, signature, annotation, 
-                          validationSamples, 
-                          classifierMethod=svmI, classifierScore, 
-                          knownSignatures="cancer"){
+sigCheckKnown <- function(check, known="cancer"){
     
-    if(length(knownSignatures)==1) {
-        sigName <- knownSignatures
+    bParallel <- TRUE
+    
+    
+    expressionSet     <- check
+    classes           <- check@classes
+    signature         <- check@signature
+    annotation        <- check@annotation 
+    validationSamples <- check@validationSamples 
+    survival          <- check@survival
+    threshold         <- check@threshold
+    nosecond          <- FALSE
+    
+    if(check@checkType=="Classifier") {
+        classifier         <- check
+        modeVal            <- check@modeVal
+        Method             <- check@classifierMethod
+        classifierScore    <- check@sigPerformance
+        classifierSurvival <- check@survivalPval
+        doMethod           <- .sigCheckKnownClassifier
+        if(!length(validationSamples)) {
+            bParallel <- FALSE
+            nosecond  <- TRUE
+            validationSamples <- xvalSpec("LOO")
+        } 
+        if(survival=="") {
+            nosecond <- TRUE
+        }
+    } else if(check@checkType == "Survival") {
+        Method           <- check@survivalMethod
+        survivalLabel     <- check@survivalLabel
+        timeLabel        <- check@timeLabel
+        survivalPval     <- check@survivalPval
+        doMethod         <- .sigCheckKnownSurvival
+        if(!length(validationSamples)) {
+            nosecond <- TRUE
+        }
+    } else {
+        stop("Invalid SigCheck object.")
+    }
+    
+    if(length(known)==1) {
+        sigName <- known
         data(knownSignatures,envir=environment())
         sig <- names(knownSignatures) %in% sigName
         if(sum(sig)==0) {
             stop('Invalid known signature set: ',sigName)
         }
-        knownSignatures <- knownSignatures[[which(sig)]]
+        known <- knownSignatures[[which(sig)]]
     } else {
         sigName <- "user specified"
     }
     
-    expressionSet <- .sigCheckNA(expressionSet)
-    
     signature <- .sigCheckSignature(expressionSet, signature, annotation)
     
-    #Test the Input Gene List Indicies if classifierScore not passed in.
-    if (missing(classifierScore)==TRUE){
-        #Get the Classifier Percentage Accuracy from sigCheckClassifier 
-        classifierScore <-
-            sigCheckClassifier(expressionSet, classes=classes,
-                               signature=signature,
-                               validationSamples=validationSamples,
-                               classifierMethod=classifierMethod)$sigPerformance
-    }
-    
     #Loop through Known Gene Signatures for Classification
-    knownGeneSignatureScoreVector <- c(rep(0,length(knownSignatures)))
-    names(knownGeneSignatureScoreVector) <- names(knownSignatures)
+    knownResult1 <- c(rep(0,length(known)))
+    names(knownResult1) <- names(known)
+    knownResult2 <- knownResult1
     totalSignatureGenesInEsets <- 0
     totalGenesInSignature <- 0
     
-    if(missing(validationSamples)) {
-        bParallel=FALSE
-    } else if(class(validationSamples) == 'xvalSpec') {
-        bParallel=FALSE
-    } else bParallel=TRUE
-    
     if(bParallel) {
-        knownGeneSignatureScoreVector <- 
-            bplapply(knownSignatures, .sigCheckKnown,
+        knownList <- 
+            bplapply(known, doMethod,
                      expressionSet, classes, validationSamples,
-                     classifierMethod, annotation)
-        knownGeneSignatureScoreVector <- unlist(knownGeneSignatureScoreVector)
+                     Method, annotation,
+                     survival, threshold)
+        if(nosecond){
+            knownResult1 <- unlist(knownList)
+        } else {
+            knownResult1 <- sapply(knownList,function(x){x$result1})
+            knownResult2 <- sapply(knownList,function(x){x$result2})
+        }
     } else {
-        for (i in 1:length(knownSignatures)){
-            knownGeneSignatureScoreVector[i] <- 
-                .sigCheckKnown(knownSignatures[[i]],
-                               expressionSet, classes, validationSamples,
-                               classifierMethod, annotation)
+        knownResult1  <- NULL
+        knownResult2  <- NULL
+        for (i in 1:length(known)){
+            checkit <- 
+                doMethod(known[[i]],
+                         expressionSet, classes, validationSamples,
+                         Method, annotation,
+                         survival, threshold)
+            if(nosecond) {
+                knownResult1 <- c(knownResult1, checkit)
+            } else {
+                knownResult1 <- c(knownResult1, checkit$result1)
+                knownResult2 <- c(knownResult2, checkit$result2)
+            }
         }
     }
-    
-    
-    #  Decide on the significance level of the given gene set by permutation
-    allScoreValues <- c(classifierScore, knownGeneSignatureScoreVector)
-    sortScores <- sort(allScoreValues, decreasing=TRUE)
-    #   Max as if there are multiple matches -- mean instead
-    geneListRank <- mean(which(sortScores == classifierScore))
+    if(nosecond){
+        names(knownResult1) = names(known)
+    }
+    output <- NULL
+    if(check@checkType=="Classifier") {
+        allScoreValues <- c(classifierScore, knownResult1)
+        sortScores     <- sort(allScoreValues, decreasing=TRUE)
+        geneListRank   <- mean(which(sortScores == classifierScore))
+        checkPval      <- .sigCheckPval(classifierScore,knownResult1,lt=FALSE)
+        nullPerf <- 
+            .sigCheckClassifierNull(expressionSet, classes, check@validationSamples,
+                                    modeVal=modeVal)
+        output <- list(checkType="Known",
+                       sigPerformance=classifierScore, 
+                       modePerformance=nullPerf,
+                       checkPval=checkPval,
+                       performanceKnown=knownResult1)
+    } else {
+        allScoreValues       <- c(survivalPval,knownResult1)
+        sortScores           <- sort(allScoreValues, decreasing=FALSE)
+        geneListRank         <- mean(which(sortScores == survivalPval))
+        geneListRank         <- mean(which(sortScores == survivalPval))
+        checkPval            <- .sigCheckPval(survivalPval,knownResult1,lt=TRUE)
+        output$checkType <- "Known"
+        output$survivalPvalsKnown <- knownResult1
+        output$survivalPval  <- survivalPval
+        output$checkPval <- checkPval
+    }
     
     #check matching features
     sigfeatures = NULL
-    for(sig in knownSignatures) {
+    for(sig in known) {
         sigfeatures = unique(c(sigfeatures,sig))
     }
     matches <- sigfeatures %in% .sigCheckSignature(expressionSet, signature, 
-                                                annotation,bReturnFeatures=TRUE)
+                                                   annotation,
+                                                   bReturnFeatures=TRUE)
     if(sum(matches) < length(sigfeatures)) {
         warning(
             sprintf("NOTE: %d unmatched features in known signatures (out of %d)",
-                        length(sigfeatures)-sum(matches),length(sigfeatures)),
+                    length(sigfeatures)-sum(matches),length(sigfeatures)),
             call.=FALSE)   
     }
     
     #return
-    nullPerf <- 
-        .sigCheckClassifierNull(expressionSet, classes, validationSamples)
-    output <- list(sigPerformance=classifierScore, modePerformance=nullPerf,
-                   known=sigName, 
-                   knownSigs=length(knownGeneSignatureScoreVector),
-                   rank=geneListRank,
-                   performanceKnown=knownGeneSignatureScoreVector)
+    output$known     <- sigName 
+    output$knownSigs <- length(knownResult1)
+    output$rank      <- geneListRank
+    
+    if(check@checkType=="Classifier") {
+        if(!nosecond) {
+            output$survivalPval  <- classifierSurvival
+            output$survivalPvalsKnown <- knownResult2
+        }
+    } else {
+        if(!nosecond) {
+            output$trainingPvalsKnown <- knownResult2
+        }
+    }
+    
     return(output)
 }
 
-.sigCheckKnown <- function(geneSig, expressionSet, classes, validationSamples,
-                           classifierMethod, annotation) {
+.sigCheckKnownClassifier <- function(geneSig, expressionSet, 
+                                     classes, validationSamples,
+                                     Method, annotation, survival, threshold) {
     
     signature <- .sigCheckSignature(expressionSet,toupper(geneSig), annotation)
     #if no overlap
     if(length(signature) == 0){
-        return(0)
+        return(list(result1=NA,result2=NA)) 
     }
-    tempGeneSigScore <- 
-        sigCheckClassifier(expressionSet, classes=classes, signature=signature,
-                           validationSamples=validationSamples,
-                           classifierMethod=classifierMethod)$sigPerformance
+    expressionSet@signature <- signature
+    classifier <- 
+        sigCheckClassifier(expressionSet, 
+                           plotTrainingKM=FALSE, plotValidationKM=FALSE)
     gc()
-    return(tempGeneSigScore)
+    if(survival=="") {
+        return(result1=classifier@sigPerformance)        
+    } else {
+        return(list(result1=classifier@sigPerformance,
+                    result2=classifier@survivalPval)) 
+    }
+    
+}
+
+.sigCheckKnownSurvival <- function(geneSig, expressionSet, 
+                                   classes, validationSamples,
+                                   Method, annotation, survival, threshold) {
+    
+    signature <- .sigCheckSignature(expressionSet,toupper(geneSig), annotation)
+    #if no overlap
+    if(length(signature) == 0){
+        return(list(result1=NA,result2=NA)) 
+    }
+    expressionSet@signature <- signature
+    check <- 
+        suppressWarnings(
+            sigCheckSurvival(expressionSet,
+                             plotTrainingKM=FALSE, plotValidationKM=FALSE)
+        )
+    gc()
+    if(is.null(validationSamples)) {
+        return(result1=check@survivalPval)        
+    } else {
+        return(list(result1=check@survivalPval,
+                    result2=check@survivalTrainingPval)) 
+    }
+    
 }
 
 

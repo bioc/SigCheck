@@ -1,68 +1,28 @@
 \name{sigCheckPermuted}
 \alias{sigCheckPermuted}
 \title{
-Check classification performance of signature on randomly permuted data
+Check signature performance against performance on randomly permuted data.
 }
 \description{
-Performance of a classification signature on intact data is compared to
-performance in permuted data, either by feature (expression values of each 
+Performance of a  signature on intact data is compared to
+performance on permuted data and/or metadata. Data may be permuted by
+by feature (expression values of each 
 feature permuted across samples), samples (expression values of all features 
-permuted within each sample), or categories (permuted assignment of samples to 
-classification categories).
+permuted within each sample). Metadata may be permuted by categories 
+(permuted assignment of samples to 
+classification categories) or survival (permuted assigment
+of survival times to samples).
 }
 \usage{
-sigCheckPermuted(expressionSet, classes, signature, 
-                 annotation, validationSamples, 
-                 classifierMethod = svmI, nIterations = 10, classifierScore,
-                 toPermute="features")
+sigCheckPermuted(check, toPermute="categories", iterations=10)
 }
 
+
 \arguments{
-  \item{expressionSet}{
-An \code{\link{ExpressionSet}} object containing the data to be checked, 
-including an expression matrix, feature labels, and samples.
+\item{check}{
+A \code{\link{SigCheckObject}}, as returned by \code{\link{sigCheck}}.
 }
-  \item{classes}{
-Specifies which label is to be used to determine the classification categories 
-(must be one of \code{varLabels(expressionSet)}). There should be only two 
-unique values in \code{expressionSet$classes}.
-}
-  \item{signature}{
-A vector of feature labels specifying which features comprise the signature to 
-be checked. These feature labels should match values as specified in the 
-\code{annotation} parameter (default is row names in the expressionSet). 
-Alternatively, this can be a integer vector of feature indexes.
-}
-  \item{annotation}{
-Character string specifying which \code{\link{featureData}} field should be 
-used as the annotation. If missing, the row names of the expressionSet are used 
-as the feature names.
-}
-  \item{validationSamples}{
-Optional specification, as a vector of sample indices, of what samples in the  
-should used for validation. 
-If present, a classifier will be trained, using the 
-specified signature and classification method, on the non-validation samples, 
-and its performance evaluated by attempting to classify the validations samples. 
-If missing, a leave-one-out (LOO) validation method will be used, where a 
-separate classifier will be trained to classify each sample using the remaining
-samples.
-}
-  \item{classifierMethod}{
-The MLInterfaces learnerSchema object indicating the machine learning method to 
-use for classification. Default is \code{\link{svmI}} for linear
-Support Vector Machine classification.  
-See \code{\link{MLearn}} for available methods.
-}
-  \item{nIterations}{
-The number of permutations to test and compare classification outcomes. 
-}
-\item{classifierScore}{
-A performance measure of the baseline classifier. Generally the 
-\code{classifierScore} element of the result list returned by 
-\code{\link{sigCheckClassifier}}. If missing, \code{\link{sigCheckClassifier}}
-will be called to establish baseline performance.
-}
+
   \item{toPermute}{
 Character string or vector of strings indicating what should be permuted. 
 Allowable values:
@@ -73,61 +33,110 @@ permuted (permutation by row).
 \item \code{"samples"}: the expression values for each sample will be 
 permuted (permutation by column).
 
+\item \code{"survival"}: the values in \code{survival} will be permuted.
+
 \item \code{"categories"}: the values in \code{classes} will be permuted.
 }}
+
+  \item{iterations}{
+The number of permuted dataset the primary signature will be compared to.
+This should be at least 1,000 to compute a meaningful empirical p-value
+for comparative performance.
 }
+}
+
+ 
 \details{
-Any combination of \code{permuteFeatures}, \code{permuteSamples}, and 
-\code{permuteCategories} can be specified. Performance for each signature is 
-determined by calling \code{\link{sigCheckClassifier}}.
+The primary signature  will be evaluated against each permuted dataset in the 
+same manner as for the intact dataset.
+
+If survival data were supplied, a survival analysis will be carried out on the 
+validation samples, and a p-value computed as a performance measure. 
+If no survival data are available, the training samples will be used to train
+a classifier, and the performance score will be percentage of validation samples
+correctly classified. (If no validation samples are provided, leave-one-out
+cross validation will be used to calculate the classification performance 
+for each permuted datdaset).
+
+An empirical p-value will be computed based on the percentile rank of the 
+performance of the  signature on the intact datdaset compared to a 
+null distribution of
+the performance of the signature on all the permuted datasets.
 }
 
 \value{
-A list with six elements:
+A result list with the following elements:
 
 \itemize{
-\item \code{$sigPerformance} is the percentage of validationSamples correctly 
-classified (or, in the LOO case, the percentage of total samples correctly 
-classified by classifiers trained using the remaining samples.)
 
-\item \code{$modePerformance} is the percentage of validationSamples correctly 
-classified by a "mode" classifier (or, in the LOO case, the percentage of total 
-samples correctly classified by a "mode" classifier, which is equal the number 
-of samples with the more-frequent category.) The "mode" classifier always 
-predicts the category that appears most often in the training set. 
-If the training set is balanced between categories, one category 
-will always be predicted.
+\item \code{$checkType} is equal to \code{"Permuted"}.
 
-\item \code{$permute} is a character string or string of character strings 
-detailing what aspects of the data were permuted (equal to \code{toPermute}.)
+\item \code{$permute} is equal to the passed value of \code{toPermute}.
 
-\item \code{$tests} is the number of tests run (equal to \code{nIterations}.)
+\item \code{$tests} is the number of tests run (equal to \code{iterations}.)
 
-\item \code{$rank} is the performance rank of the primary signature classifier 
-on the unpermuted dataset amongst the performance of the signature on 
-permuted datasets.
+\item \code{$rank} is the performance rank of the signature on the 
+intact dataset compared to its performance in the permuted datasets.
 
-\item \code{$performancePermuted} is a vector of performance scores (proportion
-of the validation set correctly predicted) for each permuted dataset.
+\item \code{$checkPval} is the empirical p-value computed using the performance
+scores of the signature on permuted datdasets as a null distribution. 
+A value of zero indicates that the signature did not perform better on 
+any permuted datasets than it does using the intact data.
+
+\item \code{$survivalPval} represents the performance of the primary signature
+on the original dataste
+if survival data were provided.
+
+\item \code{$survivalPvalsPermuted} is a vector of performance scores (p-values) 
+for each permuted datdaset, if survival data
+were provided.
+
+\item \code{$trainingPvalsPermuted} is a vector of performance scores (p-values) 
+for each permuted datdaset, if survival data
+and separate validation samples were provided.
+
+\item \code{$sigPerformance} is the proportion of validation samples 
+correctly classified using th eintact datdaset if a classifier was used.
+
+\item \code{$modePerformance} is the proportion of validation samples 
+correctly classified in the intact dataaset using a mode classifier.
+
+\item \code{$performancePermuted} is a vector of classification 
+performance scores for each
+permuted datdaset, each indicating the proportion
+of validation samples correctly classified if a classifier was used.
 }
 }
+
+
 \author{
-Justin Norden with Rory Stark
+Rory Stark
 }
 
 \seealso{
-\code{\link{sigCheck}}, \code{\link{sigCheckClassifier}}, 
-\code{\link{sigCheckRandom}}, \code{\link{sigCheckKnown}}, \code{\link{MLearn}}
+\code{\link{sigCheck}}, \code{\link{sigCheckAll}}, 
+\code{\link{sigCheckRandom}}, \code{\link{sigCheckKnown}}
 }
 \examples{
 library(breastCancerNKI)
 data(nki)
 nki <- nki[,!is.na(nki$e.dmfs)]
 data(knownSignatures)
-results <- sigCheckPermuted(nki, classes="e.dmfs", 
-                            signature=knownSignatures$cancer$VANTVEER, 
-                            annotation="HUGO.gene.symbol", 
-                            validationSamples=275:319,
-                            toPermute="features")
+
+## survival analysis
+check <- sigCheck(nki, classes="e.dmfs", survival="t.dmfs",
+                  signature=knownSignatures$cancer$VANTVEER,
+                  annotation="HUGO.gene.symbol",
+                  validationSamples=150:319)
+
+par(mfrow=c(1,2))
+permutedCategories <- sigCheckPermuted(check, toPermute="categories", 
+                                       iterations=20)
+permutedCategories$checkPval
+sigCheckPlot(permutedCategories)
+permutedSurvival <- sigCheckPermuted(check, toPermute="survival", 
+                                     iterations=20)
+permutedSurvival$checkPval
+sigCheckPlot(permutedSurvival)
 }
 

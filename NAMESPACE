@@ -1,17 +1,49 @@
 #import(MLInterfaces, Biobase, e1071, BiocParallel)
 
 export(sigCheck)
-export(sigCheckClassifier)
 export(sigCheckRandom)
 export(sigCheckPermuted)
 export(sigCheckKnown)
 export(sigCheckPlot)
+export(sigCheckAll)
+
+#exportMethods(
+# "checkType",                          
+# "classes",                            
+# "annotation",                         
+# "survival",                           
+# "signature",                          
+# "validationSamples",                  
+# "survivalMethod",                     
+# "threshold",                          
+# "survivalType",                       
+# "timeUnits",                          
+# "survivalScores",                     
+# "survivalConfusionMatrix",            
+# "survivalClassificationScore",        
+# "survivalPval",                       
+# "survivalTrainingScores",             
+# "survivalTrainingConfusionMatrix",    
+# "survivalTrainingClassificationScore",
+# "survivalTrainingPval",               
+# "classifierMethod",                   
+# "sigPerformance",                     
+# "confusion",            
+# "modeVal",
+# "modePerformance",                    
+# "classifier"  
+#)
+
+exportClasses(
+    "SigCheckObject"
+)
+
 
 #Imports: AnnotationDbi, Biobase, BiocGenerics, BiocParallel, graphics,
 #         IRanges, MLInterfaces, S4Vectors, stats, utils
 
 importMethodsFrom(Biobase, exprs, "exprs<-", featureData, varLabels,
-                  varMetadata)
+                  varMetadata, sampleNames)
 
 importMethodsFrom(BiocParallel, bplapply)
 
@@ -25,6 +57,10 @@ importFrom(stats, ecdf, formula)
 
 importFrom(utils, data)
 
-importFrom(MLInterfaces, svmI)
+importFrom(MLInterfaces, svmI, trainScores, testScores)
+
+importFrom(survival, Surv, survfit, survdiff)
 
 importFrom(e1071, svm)
+
+import(methods)

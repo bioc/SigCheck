@@ -20,15 +20,18 @@ library(breastCancerNKI)
 data(nki)
 nki = nki[,!is.na(nki$e.dmfs)]
 data(knownSignatures)
-nkiResults = sigCheck(nki, classes="e.dmfs", annotation="HUGO.gene.symbol",
-                   signature=knownSignatures$cancer$VANTVEER,
-                   validationSamples=275:319, 
-                   knownSignatures="cancer",nIterations=1000)
+checkNKI <- sigCheck(nki, classes="e.dmfs", survival="t.dmfs",
+                  signature=knownSignatures$cancer$VANTVEER,
+                  annotation="HUGO.gene.symbol",
+                  validationSamples=150:319)
+                  
+nkiResults <- sigCheckAll(checkNKI,iterations=1000) 
 }
 
+\dontrun{
 # Example usage of nkiResults
-data(nkiResults)
-nkiResults$checkClassifier
-sigCheckPlot(nkiResults$checkRandom)
+# data(nkiResults)
+# sigCheckPlot(nkiResults)
+}
 }
 \keyword{datasets}
