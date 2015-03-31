@@ -26,7 +26,8 @@ BiocStyle::latex()
 \section{Introduction}
 
 COMING SOON...
- 
+\cite{Venet2011}
+
 \section{Technical notes}
 
 \subsection{Use of \Biocpkg{BiocParallel} and \Rpackage{parallel}}

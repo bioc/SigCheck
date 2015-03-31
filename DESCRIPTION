@@ -1,7 +1,7 @@
 Package: SigCheck
 Type: Package
 Title: Check a gene signature's prognostic performance against
-        random signatures, known signatures, and permuted data/metadata.
+        random signatures, known signatures, and permuted data/metadata
 Version: 1.99.1
 Author:  Rory Stark <rory.stark@cruk.cam.ac.uk> and 
          Justin Norden <jn333@cam.ac.uk>
