@@ -112,6 +112,7 @@ library(breastCancerNKI)
 data(nki)
 nki <- nki[,!is.na(nki$e.dmfs)]
 data(knownSignatures)
+ITERATIONS <- 5 # should be at least 20, 1000 for real checks
 
 ## survival analysis
 check <- sigCheck(nki, classes="e.dmfs", survival="t.dmfs",
@@ -119,7 +120,7 @@ check <- sigCheck(nki, classes="e.dmfs", survival="t.dmfs",
                   annotation="HUGO.gene.symbol",
                   validationSamples=150:319)
                   
-results <- sigCheckAll(check,iterations=20, 
+results <- sigCheckAll(check,iterations=ITERATIONS, 
                        known=knownSignatures$cancer[1:20])                  
 
 
@@ -130,7 +131,7 @@ check <- sigCheck(nki, classes="e.dmfs",
                   validationSamples=275:319,
                   scoreMethod="classifier")
                   
-results <- sigCheckAll(check,iterations=20, 
+results <- sigCheckAll(check,iterations=ITERATIONS, 
                        known=knownSignatures$cancer[1:20])  
 }
 

@@ -95,6 +95,7 @@ library(breastCancerNKI)
 data(nki)
 nki <- nki[,!is.na(nki$e.dmfs)]
 data(knownSignatures)
+ITERATIONS <- 5 # should be at least 20, 1000 for real checks
 
 ## survival analysis
 check <- sigCheck(nki, classes="e.dmfs", survival="t.dmfs",
@@ -102,7 +103,7 @@ check <- sigCheck(nki, classes="e.dmfs", survival="t.dmfs",
                   annotation="HUGO.gene.symbol",
                   validationSamples=150:319)
 
-randomResult <- sigCheckRandom(check, iterations=20)
+randomResult <- sigCheckRandom(check, iterations=ITERATIONS)
 randomResult$checkPval
 sigCheckPlot(randomResult)
 }

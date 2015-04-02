@@ -75,6 +75,7 @@ library(breastCancerNKI)
 data(nki)
 nki <- nki[,!is.na(nki$e.dmfs)]
 data(knownSignatures)
+ITERATIONS <- 5 # should be at least 20, 1000 for real checks
 
 ## survival analysis with separate training and validation using SVM
 check <- sigCheck(nki, classes="e.dmfs", survival="t.dmfs",
@@ -83,7 +84,7 @@ check <- sigCheck(nki, classes="e.dmfs", survival="t.dmfs",
                   validationSamples=250:319,
                   scoreMethod="classifier", threshold=.33) 
                   
-results <- sigCheckRandom(check,iterations=20)
+results <- sigCheckRandom(check,iterations=ITERATIONS)
 par(mfrow=c(1,2))
 sigCheckPlot(results)
 sigCheckPlot(results, classifier=TRUE)

@@ -122,6 +122,7 @@ library(breastCancerNKI)
 data(nki)
 nki <- nki[,!is.na(nki$e.dmfs)]
 data(knownSignatures)
+ITERATIONS <- 5 # should be at least 20, 1000 for real checks
 
 ## survival analysis
 check <- sigCheck(nki, classes="e.dmfs", survival="t.dmfs",
@@ -131,11 +132,11 @@ check <- sigCheck(nki, classes="e.dmfs", survival="t.dmfs",
 
 par(mfrow=c(1,2))
 permutedCategories <- sigCheckPermuted(check, toPermute="categories", 
-                                       iterations=20)
+                                       iterations=ITERATIONS)
 permutedCategories$checkPval
 sigCheckPlot(permutedCategories)
 permutedSurvival <- sigCheckPermuted(check, toPermute="survival", 
-                                     iterations=20)
+                                     iterations=ITERATIONS)
 permutedSurvival$checkPval
 sigCheckPlot(permutedSurvival)
 }
