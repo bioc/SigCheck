@@ -155,7 +155,7 @@ sigCheckRandom <- function(check, iterations=10){
                              plotTrainingKM=FALSE, plotValidationKM=FALSE)
         )
     gc()
-    if(validationSamples=="") {
+    if(!length(validationSamples)) {
         return(result1=check@survivalPval)        
     } else {
         return(list(result1=check@survivalPval,

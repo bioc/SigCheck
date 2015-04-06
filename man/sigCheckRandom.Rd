@@ -91,6 +91,10 @@ Rory Stark
 \code{\link{sigCheckPlot}}
 }
 \examples{
+#Disable parallel so Bioconductor build won't hang
+library(BiocParallel)
+register(SerialParam())
+
 library(breastCancerNKI)
 data(nki)
 nki <- nki[,!is.na(nki$e.dmfs)]
