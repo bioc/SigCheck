@@ -48,16 +48,17 @@ performance of the signature against a database of signatures previously
 identified to discriminate in other domains.
 
 Finally, two calls are made to \code{\link{sigCheckPermuted}} to check the 
-performance of randomly permuted metadata (and possibly expression data).
-The first call permutes the category assignments (\code{toPermute="categories"}).
-The second call permutes the survival data if they
-are available (\code{toPermute="categories"}); 
-otherwise it permutes the expression value for each gene (permuting
+performance of randomly permuted metadata and expression data.
+The first call permutes the survival data if they
+are available (\code{toPermute="survival"}); 
+otherwise it permutes the 
+category assignments (\code{toPermute="categories"})
+The second call permuted the expression value for each gene (permuting
 each row in the \code{\link{ExpressionSet}}, 
 equivalent to \code{toPermute="features"}).
 
 If \code{plotResults} is \code{TRUE}, the results are plotted. If a classifier
-is involved, a set of four classification results is plotted in
+is involved, a set of four classification results are plotted in
 a 2x2 grid, showing how the classification performance of the main
 signature compares to that of a mode classifier and to the
 distribution of performance values observed for
@@ -78,19 +79,22 @@ A list containing four elements, each containing the result of a check.
 \item \code{$checkKnown} is the result list returned by 
 \code{\link{sigCheckKnown}}.
 
-\item \code{$checkPermutedCategories} is the result list returned by 
-\code{\link{sigCheckPermuted}}
-with \code{toPermute="categories"}.
-
-The final element of the result list will be one of the following:
+The third element of the result list will be one of the following:
 
 \item \code{$checkPermutedSurvival} is the result list returned by 
 \code{\link{sigCheckPermuted}}
 with \code{toPermute="survival"}.
 
+\item \code{$checkPermutedCategories} is the result list returned by 
+\code{\link{sigCheckPermuted}}
+with \code{toPermute="categories"}.
+
+The fourth element of the list will be:
+
 \item \code{$checkPermutedFeatures} is the result list returned by 
 \code{\link{sigCheckPermuted}}
 with \code{toPermute="features"}.
+
 }
 }
 \references{

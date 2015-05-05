@@ -16,7 +16,8 @@ sigCheck(expressionSet, classes, survival, signature,
          scoreMethod="PCA1", threshold=median,
          classifierMethod=svmI, modeVal,
          survivalLabel, timeLabel,
-         plotTrainingKM=TRUE, plotValidationKM=TRUE)
+         plotTrainingKM=TRUE, plotValidationKM=TRUE,
+         impute=TRUE)
 }
 
 
@@ -25,6 +26,10 @@ sigCheck(expressionSet, classes, survival, signature,
 \item{expressionSet}{
 An \code{\link{ExpressionSet}} object containing the data to be checked, 
 including an expression matrix, feature labels, and samples.
+
+\code{expressionSet} can also be an existing \code{\link{SigCheckObject}},
+in which case everything will be inherted from the passed object 
+except the values for any specified parameters,
 }
 
 \item{classes}{
@@ -48,9 +53,9 @@ Alternatively, this can be a integer vector of feature indexes.
 }
 
 \item{annotation}{
-Character string specifying which \code{\link{featureData}} field should be 
-used as the annotation. If missing, the row names of the \code{expressionSet} are 
-used as the feature names.
+Character string specifying which \code{\link{fvarLabels}} field should be 
+used as the annotation. If missing, the row names of the \code{expressionSet} 
+are used as the feature names.
 }
 
 \item{validationSamples}{
@@ -68,8 +73,8 @@ each sample using the all the remaining samples.
 }
 
 \item{scoreMethod}{
-A string indicating how the samples should be split into groups for 
-survival analysis. One of the following values:
+specification of how the samples should be split into groups for 
+survival analysis. If a character sting, one of the following values:
 \itemize{ 
 \item \code{"PCA1"}: default scoring method for separating validation
 samples into groups
@@ -84,6 +89,11 @@ samples into groups is determined by a classifier specified in the
 specified, the classifier method must return a real-valued score for each
 predicted sample.
 }
+
+\code{scoreMethod} can also be a user-defined function that computes a score.
+The function should take a single parameter, an \code{\link{ExpressionSet}}, and
+return a vector of score, one for each row.
+
 if the \code{survival} parameter is missing, \code{scoreMethod} value must be 
 \code{"classifier"}.
 }
@@ -92,8 +102,14 @@ specifies the threshold used for separating the validation samples into classed
 based on the score derived using \code{scoreMethod}. 
 Can be either a function, (with default \code{median}) or a number between 
 zero and one indicating a percentile. Validation samples will be divided into
-a group with scores less than this value, and another group with scores greater 
+a group whose percentile scores are less than this value, and another 
+group with percentile scores greater 
 than or equal to this value.
+\code{threshold} may also be a vector of two percentiles,
+in which case samples
+will be divided into High, Low, and Mid groups.
+The survival p-value will be computed using only the high and low
+groups, with the mid group samples excluded.
 }
 
   \item{classifierMethod}{
@@ -133,7 +149,11 @@ automatically generated.
 Note that is the \code{validationSamples} parameter is missing, the resulting
 plot will be over all samples.
 }
-
+\item{impute}{
+if \code{TRUE}, missing data values in the \code{expressionSet} will be imputed.
+If \code{FALSE}, any features with any missing values will be removed 
+from the dataset.
+}
 }
 
 \details{
@@ -187,6 +207,11 @@ data(knownSignatures)
 check <- sigCheck(nki, classes="e.dmfs", survival="t.dmfs",
                   signature=knownSignatures$cancer$VANTVEER,
                   annotation="HUGO.gene.symbol") 
+check@survivalPval
+check <- sigCheck(check, classes="e.dmfs", survival="t.dmfs",
+                  signature=knownSignatures$cancer$VANTVEER,
+                  annotation="HUGO.gene.symbol",
+                  scoreMethod="High", threshold=.33) 
 check@survivalPval
 
 ## survival analysis with separate training and validation using SVM

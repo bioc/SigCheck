@@ -6,7 +6,7 @@
 
 sigCheckClassifier <- function(SigCheck,  
                                plotTrainingKM=TRUE, plotValidationKM=TRUE,
-                               ...){
+                               impute=FALSE, ...){
     
     classifyFormula <- formula(sprintf("%s~.",SigCheck@classes))
     category <- which(varLabels(SigCheck) %in% SigCheck@classes)
@@ -34,7 +34,7 @@ sigCheckClassifier <- function(SigCheck,
         trainingSet <- trainingSet[-validationSamples]
     }
     
-    SigCheck <- .sigCheckNA(SigCheck)
+    SigCheck <- .sigCheckNA(SigCheck,impute=impute)
     
     #Subset Whole Matrix Based Off of GeneSigIndices
     
@@ -176,14 +176,24 @@ sigCheckClassifier <- function(SigCheck,
     return(signature)
 }
 
-.sigCheckNA <- function(expressionSet) {
-    nas <- apply(exprs(expressionSet),1,function(x)sum(is.na(x))>0)
-    if(sum(nas)) {
-        warning(sprintf("NOTE: %d features with NA values removed",
-                        sum(nas)),call.=FALSE)
-    }
-    expressionSet <- expressionSet[!nas,]
-    return(expressionSet)
+.sigCheckNA <- function(expressionSet, impute=FALSE) {
+   if(impute) {
+      nas <- apply(exprs(expressionSet),1,function(x)sum(is.na(x)))
+      if(sum(nas)) {
+         message(sprintf("NOTE: %d values in %d features imputed (%2.4f%%).",
+                      sum(nas),sum(nas>0),
+                      (sum(nas)/(nrow(expressionSet)*ncol(expressionSet)))*100))      
+         exprs(expressionSet) <- t(impute(t(exprs(expressionSet))))
+      }
+   } else {
+      nas <- apply(exprs(expressionSet),1,function(x)sum(is.na(x))>0)
+      if(sum(nas)) {
+         warning(sprintf("NOTE: %d features with NA values removed",
+                         sum(nas)),call.=FALSE)
+      }
+      expressionSet <- expressionSet[!nas,]
+   }
+   return(expressionSet)
 }
 
 

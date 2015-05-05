@@ -2,12 +2,12 @@
 \alias{nkiResults}
 \docType{data}
 \title{
-Precomputed list of results for a call to \code{\link{sigCheck}} using the 
+Precomputed list of results for a call to \code{\link{sigCheckAll}} using the 
 \code{breastCancerNKI} dataset.
 }
 \description{
 This object represents the results lists returned by a call to 
-\code{\link{sigCheck}}. It is used by the vignette accompanying the 
+\code{\link{sigCheckAll}}. It is used by the vignette accompanying the 
 \code{\link{SigCheck}} package as an example result. It was derived by 
 running the code in the example below.
 }
@@ -20,18 +20,16 @@ library(breastCancerNKI)
 data(nki)
 nki = nki[,!is.na(nki$e.dmfs)]
 data(knownSignatures)
-checkNKI <- sigCheck(nki, classes="e.dmfs", survival="t.dmfs",
+check <- sigCheck(nki, classes="e.dmfs", survival="t.dmfs",
                   signature=knownSignatures$cancer$VANTVEER,
                   annotation="HUGO.gene.symbol",
-                  validationSamples=150:319)
+                  validationSamples=101:ncol(nki))
                   
 nkiResults <- sigCheckAll(checkNKI,iterations=1000) 
 }
 
-\dontrun{
 # Example usage of nkiResults
-# data(nkiResults)
-# sigCheckPlot(nkiResults)
-}
+data(nkiResults)
+sigCheckPlot(nkiResults)
 }
 \keyword{datasets}

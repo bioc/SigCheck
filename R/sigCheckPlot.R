@@ -33,13 +33,7 @@ sigCheckPlotClassifier <- function(checkResults,...){
             sigCheckPlot(checkResults[[i]])
         }
     } else {
-        scores <- checkResults$performance
-        scores <- sort(scores)
-        uscores <- unique(scores)
-        numscore <- NULL
-        for(uscore in uscores) {
-            numscore <- c(numscore,sum(scores %in% uscore))    
-        }
+        scores <- sort(checkResults$performance)
         fields <- names(checkResults)
         
         if ("performanceRandom" %in% fields) {
@@ -53,9 +47,9 @@ sigCheckPlotClassifier <- function(checkResults,...){
             titlestring <- sprintf("Check: Permuted Data: [%s]",
                                    checkResults$permute)
         }
-        xmin <- min(uscores,checkResults$sigPerformance,
+        xmin <- min(scores,checkResults$sigPerformance,
                     checkResults$modePerformance)
-        xmax <- max(uscores,checkResults$sigPerformance,
+        xmax <- max(scores,checkResults$sigPerformance,
                     checkResults$modePerformance)    
         pval <- 1 - (sum(checkResults$sigPerformance > scores)/length(scores))
         accuracy <- ceiling(log10(length(scores)))
@@ -69,12 +63,13 @@ sigCheckPlotClassifier <- function(checkResults,...){
         }
         rankstr <- sprintf(rankstr,ecdf(scores)(checkResults$sigPerformance),
                            length(scores),pval)
-        ymax <- max(numscore)
-        if(length(unique(numscore))==1){
-            ymax <- ymax*2
-        }
-        plot(uscores,numscore,xlab="Performance",ylab="Frequency",type="b",
-             xlim=c(xmin,xmax), ylim=c(0,ymax),
+#         ymax <- max(numscore)
+#         if(length(unique(numscore))==1){
+#             ymax <- ymax*2
+#         }
+        plot(density(scores),#numscore,
+             #xlab="Performance",ylab="Density",
+             #type="b", xlim=c(xmin,xmax), ylim=c(0,ymax),
              main=titlestring,sub=rankstr,...)
         abline(v=checkResults$sigPerformance,col="red",lwd=3)
         abline(v=checkResults$modePerformance,col="red",lty="dotted",lwd=2)
@@ -101,11 +96,6 @@ sigCheckPlotSurvival <- function(checkResults,...){
             stop("No survival scores computed.")
         }
         scores <- sort(scores)
-        uscores <- unique(scores)
-        numscore <- NULL
-        for(uscore in uscores) {
-            numscore <- c(numscore,sum(scores %in% uscore))    
-        }
         fields <- names(checkResults)
         
         if (checkResults$checkType == "Random") {
@@ -119,8 +109,8 @@ sigCheckPlotSurvival <- function(checkResults,...){
             titlestring <- sprintf("Survival: Permuted Data: [%s]",
                                    checkResults$permute)
         }
-        xmin <- min(uscores)
-        xmax <- max(uscores)    
+        xmin <- min(scores)
+        xmax <- max(scores)    
         pval <- 1 - (sum(checkResults$survivalPval < scores)/length(scores))
         accuracy <- ceiling(log10(length(scores)))
         
@@ -146,7 +136,7 @@ sigCheckPlotSurvival <- function(checkResults,...){
         rankstr <- sprintf(rankstr,1-ecdf(scores)(checkResults$survivalPval),
                            length(scores),pval)
         
-        plot(density(log10(uscores)),
+        plot(density(log10(scores)),
              #xlim=c(log10(xmin),log10(xmax)),
              main=titlestring,sub=rankstr,...)
         #if(checkResults$survivalPval>xmin) {
