@@ -46,6 +46,7 @@ The preferred way to create a \code{\link{SigCheckObject}} is to use the
     \item{\code{annotation}:}{Object of class \code{"character"} ~~ }
     \item{\code{survival}:}{Object of class \code{"character"} ~~ }
     \item{\code{signature}:}{Object of class \code{"vector"} ~~ }
+    \item{\code{signatureLabels}:}{Object of class \code{"vector"} ~~ }
     \item{\code{validationSamples}:}{Object of class \code{"vector"} ~~ }
     \item{\code{survivalMethod}:}{Object of class \code{"character"} ~~ }
     \item{\code{threshold}:}{Object of class \code{"ANY"} ~~ }
@@ -114,7 +115,7 @@ Class \code{"\linkS4class{Versioned}"}, by class "ExpressionSet", distance 4.
 %%     \item{validationSamples}{\code{signature(object = "SigCheckObject")}: ... }
 %% 	 }
 
-No public methods, acess slots directly if required. 
+No public methods, access slots directly if required. 
 }
 %% \references{
 %%  ~~put references to the literature/web site here~~

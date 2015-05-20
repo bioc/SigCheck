@@ -14,7 +14,7 @@ sigCheck <- function(expressionSet, classes, survival, signature,
          survival <- expressionSet@survival
       }
       if(missing(signature)) {
-         signature <- expressionSet@signature
+         signature <- expressionSet@signatureLabels
       }
       if(missing(annotation)) {
          annotation <- expressionSet@annotation
@@ -23,7 +23,7 @@ sigCheck <- function(expressionSet, classes, survival, signature,
          validationSamples <- expressionSet@validationSamples
       }
       if(missing(scoreMethod)) {
-         scoreMethod <- expressionSet@scoreMethod
+         scoreMethod <- expressionSet@survivalMethod
       }
       if(missing(threshold)) {
          threshold <- expressionSet@threshold
@@ -118,6 +118,8 @@ sigCheck <- function(expressionSet, classes, survival, signature,
       stop("Invalid scoreMethod: [",scoreMethod,"]")
    }
    
+   result@signatureLabels <- signature
+   
    return(result)
 }
 
@@ -155,7 +157,7 @@ sigCheckAll <- function(check,
       sigCheckPermuted(check, toPermute=toPermute[2],
                        iterations=iterations) 
    
-   if(toPermute[2]=="survival") {
+   if(toPermute[1]=="survival") {
       output <- list(checkRandom=randomGeneOutput,
                      checkKnown=knownGenesOutput,
                      checkPermutedSurvival=permute1Output,
