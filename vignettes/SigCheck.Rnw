@@ -17,7 +17,7 @@ BiocStyle::latex()
 \title{Checking gene expression signatures against random and known signatures with \Biocpkg{SigCheck}}
 \author{Rory Stark}
 
-\date{Edited: March 23, 2015; Compiled: \today}
+\date{Edited: May 20, 2015; Compiled: \today}
 
 \maketitle
 
@@ -155,8 +155,13 @@ that were used in deriving the gene signature.
 It is expected that the signature should perform optimally on these samples.
 A validation n set of samples that played no role in deriving the signature is
 required to test the efficacy of the signature.
+For the NKI dataste, the \Rcode{varLabel} named \Rcode{"series"} specifies which 
+samples were int he original trainingset, and which
+were profiled in the follow-on experiment:
 For this example, we will treat the first 100 samples as the training set.
-
+<<showSeries, eval=TRUE, keep.source=TRUE>>=
+table(nki$series)
+@
 \section{Example: Survival analysis}
 In this section, we will use the survival data to test the ability of the
 van't veer signature to predict outcome in the validation set. 
@@ -189,19 +194,23 @@ The \Rcode{signature} parameter contains the signature that will be checked.
 This is most easily specified as a vector of feature names (ie gene IDs)
 that match features in the \Rcode{annotation} parameter. 
 The \Rcode{annotation} parameter specifies which of 
-\Rcode{fvarLabels(experssionSet)} contains the feature labels.
+\Rcode{fvarLabels(expressionSet)} contains the feature labels.
 In this example, \Rcode{signature=knownSignatures\$cancer\$VANTVEER}, and
 \Rcode{annotation="HUGO.gene.symbol"}.
 
+If the data are divded into training and validaiton samples, the samples 
+that comprise the validaiton set should be specified using
+the \Rcode{validationSamples} parameter.
+
 The remaining parameters are optional, with usable defaults, and will be 
-discussed in a subsequent section.
+discussed in subsequent sections.
 
 Putting this all together, the call to set up the experiment is:
 <<sigCheckSurvival, fig=TRUE, include=FALSE, eval=TRUE, echo=TRUE,message=TRUE,warning=TRUE, width=10, height=8 >>=
 check <- sigCheck(nki, classes="e.dmfs", survival="t.dmfs",
                   signature=knownSignatures$cancer$VANTVEER,
                   annotation="HUGO.gene.symbol",
-                  validationSamples=101:ncol(nki)) 
+                  validationSamples=which(nki$series=="NKI2")) 
 check
 @
 \incfig{SigCheck-sigCheckSurvival}{.99\textwidth}{Results of 
@@ -231,7 +240,7 @@ check@survivalPval
 
 From this analysis, it appears that the signature does indeed have power in
 distinguishing between two distinct survival groups. The next question is how
-unique these specific genes int he signature are for this task. the function
+unique these specific genes in the signature are for this task. the function
 \Rfunction{sigCheckAll} will run a series of checks for comparison purposes.
 In each check, some background performance distribution is computed, and the 
 performance of the signature is compared by calculating an empirical p-value.
@@ -294,9 +303,9 @@ this line will not be drawn. The vertical red dotted line shows where
 a "significant" result (p=0.05) would lie relative to
 the background distribution.
 
-The upper-right plot shows performance of the v'ant veer signature relative to 1,000
+The upper-left plot shows performance of the v'ant veer signature relative to 1,000
 randomly chosen signature of comprised of an equal number of gene. The
-upper-left plot shows the performance compared to 48 known
+upper-right plot shows the performance compared to 48 known
 cancer prognostic signatures, while the two lower plot show performance
 on permuted data (survival and gene expression across each feature).
 
@@ -479,7 +488,7 @@ To generate such an analysis, simply leave the \Rcode{survival} unspecified:
 check <- sigCheck(nki, classes="e.dmfs",
                   signature=knownSignatures$cancer$VANTVEER,
                   annotation="HUGO.gene.symbol",
-                  validationSamples=101:ncol(nki),
+                  validationSamples=which(nki$series=="NKI2"),
                   scoreMethod="classifier") 
 check
 @

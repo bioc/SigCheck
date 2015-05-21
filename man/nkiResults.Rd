@@ -23,9 +23,9 @@ data(knownSignatures)
 check <- sigCheck(nki, classes="e.dmfs", survival="t.dmfs",
                   signature=knownSignatures$cancer$VANTVEER,
                   annotation="HUGO.gene.symbol",
-                  validationSamples=101:ncol(nki))
+                  validationSamples=which(nki$series=="NKI2"))
                   
-nkiResults <- sigCheckAll(checkNKI,iterations=1000) 
+nkiResults <- sigCheckAll(check,iterations=1000) 
 }
 
 # Example usage of nkiResults
