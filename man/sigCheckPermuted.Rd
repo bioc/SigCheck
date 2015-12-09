@@ -10,7 +10,7 @@ by feature (expression values of each
 feature permuted across samples), samples (expression values of all features 
 permuted within each sample). Metadata may be permuted by categories 
 (permuted assignment of samples to 
-classification categories) or survival (permuted assigment
+classification categories) or survival (permuted assignment
 of survival times to samples).
 }
 \usage{
@@ -56,10 +56,10 @@ If no survival data are available, the training samples will be used to train
 a classifier, and the performance score will be percentage of validation samples
 correctly classified. (If no validation samples are provided, leave-one-out
 cross validation will be used to calculate the classification performance 
-for each permuted datdaset).
+for each permuted dataset).
 
 An empirical p-value will be computed based on the percentile rank of the 
-performance of the  signature on the intact datdaset compared to a 
+performance of the  signature on the intact dataset compared to a 
 null distribution of
 the performance of the signature on all the permuted datasets.
 }
@@ -79,31 +79,31 @@ A result list with the following elements:
 intact dataset compared to its performance in the permuted datasets.
 
 \item \code{$checkPval} is the empirical p-value computed using the performance
-scores of the signature on permuted datdasets as a null distribution. 
+scores of the signature on permuted datasets as a null distribution. 
 A value of zero indicates that the signature did not perform better on 
 any permuted datasets than it does using the intact data.
 
 \item \code{$survivalPval} represents the performance of the primary signature
-on the original dataste
+on the original dataset
 if survival data were provided.
 
 \item \code{$survivalPvalsPermuted} is a vector of performance scores (p-values) 
-for each permuted datdaset, if survival data
+for each permuted dataset, if survival data
 were provided.
 
 \item \code{$trainingPvalsPermuted} is a vector of performance scores (p-values) 
-for each permuted datdaset, if survival data
+for each permuted dataset, if survival data
 and separate validation samples were provided.
 
 \item \code{$sigPerformance} is the proportion of validation samples 
-correctly classified using th eintact datdaset if a classifier was used.
+correctly classified using the intact dataset if a classifier was used.
 
 \item \code{$modePerformance} is the proportion of validation samples 
-correctly classified in the intact dataaset using a mode classifier.
+correctly classified in the intact dataset using a mode classifier.
 
 \item \code{$performancePermuted} is a vector of classification 
 performance scores for each
-permuted datdaset, each indicating the proportion
+permuted dataset, each indicating the proportion
 of validation samples correctly classified if a classifier was used.
 }
 }

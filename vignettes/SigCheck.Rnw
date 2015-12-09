@@ -17,7 +17,7 @@ BiocStyle::latex()
 \title{Checking gene expression signatures against random and known signatures with \Biocpkg{SigCheck}}
 \author{Rory Stark}
 
-\date{Edited: March 23, 2015; Compiled: \today}
+\date{Edited: December 9, 2015; Compiled: \today}
 
 \maketitle
 
@@ -25,10 +25,560 @@ BiocStyle::latex()
 
 \section{Introduction}
 
-COMING SOON...
-\cite{Venet2011}
+A common task in the analysis of genomic data is the derivation of 
+gene expression signatures that distinguish between phenotypes
+(disease outcomes, molecular subtypes, etc.). 
+However, in their paper "Most random gene expression signatures are 
+significantly associated with breast cancer outcome" \cite{Venet2011}, 
+Venet, Dumont, and Detour point out that while a gene signature may 
+distinguish between two classes of phenotype, their ultimate uniqueness and 
+utility may be limited. They show that while a specialized feature selection 
+process may appear to determine a unique set of predictor genes, the resultant 
+signature may not perform better than one made up of random genes, or genes 
+selected at random from all differentially expressed genes. This suggests that 
+the genes in the derived signature may not be particularly informative as to 
+underlying biological mechanisms. 
+They further show that gene sets that comprise published signatures for a wide 
+variety of phenotypic classes may perform just as well at predicting arbitrary 
+phenotypes; famously, they show that a gene signature that distinguishes 
+postprandial laughter performs as well at predicting the outcome of breast
+cancers as well as a widely-cited signature \cite{vantveer}.
+
+The \Biocpkg{SigCheck} package was developed in order to make it easy to check 
+a gene signature against random and known signatures, and assess the unique 
+ability of that signature to distinguish phenotypical classes. 
+It additionally provides the ability to check a signature's performance against
+permuted data as a reality check that it is detecting a genuine signal 
+in the original data. 
+This vignette shows the process of performing the checks.
+
+\section{Example dataset: NKI Breast Cancer Data and the van't Veer Signature}
+
+In order to use \Biocpkg{SigCheck}, you must provide 
+a) some data (an expression matrix), 
+b) some metadata (feature names, survival data, class identifiers), 
+and c) a gene signature (a subset of the features). 
+For this vignette, we will use the NKI Breast Cancer dataset 
+\Biocexptpkg{breastCancerNKI} and the associated van't Veer signature that 
+predicts the likelihood that a patient will develop a distant metastases 
+\cite{vantveer}. 
+
+The dataset can be loaded as follows:
+<<loadData, eval=TRUE, keep.source=TRUE>>=
+library(breastCancerNKI)
+data(nki)
+nki
+@
+
+As can be seen, the \Rcode{nki} data is encapsulated in an 
+\Robject{ExpressionSet} object. At its core, it contains an expression matrix 
+consisting of 24,481 features (microarray probes mapped to genes) and 
+337 samples (derived from tumor tissue taken from breast cancer patients). 
+Included is phenotypical (clinical) metadata regarding the patients, 
+including age of the patient, tumor grade, expression status of the 
+ER, PR, and HER2 biomarkers, presence of a BRCA mutation, etc:
+
+<<showPhenoData, eval=TRUE, keep.source=TRUE>>=
+varLabels(nki)
+@
+
+The signatures derived by \cite{vantveer} and \cite{vandevijver} are used to 
+predict the Distant Metastasis-Free Survival (DMFS) time. 
+This is presented as a continuous measure indicating the time until the 
+occurrence of a distant metastasis:
+
+<<tDMFS, eval=TRUE, keep.source=TRUE>>=
+nki$t.dmfs
+@
+
+DMFS is also presented as a binary class, with a cutoff used to distinguish 
+between patients that had a recurrence event and those that did not:
+
+<<eDMFS, eval=TRUE, keep.source=TRUE>>=
+nki$e.dmfs
+@
+
+A number of patient samples do not 
+have DMFS data available. 
+Currently, \Biocpkg{SigCheck} can not handle NAs in the metadata, 
+so the first step is to exclude these patients from
+our analysis, which brings the number of samples down to 319:
+
+<<excludeNA, eval=TRUE, keep.source=TRUE>>=
+dim(nki)
+nki <- nki[,!is.na(nki$e.dmfs)]
+dim(nki)
+@
+
+The next step is to provide a gene signature to check. A core function of 
+\Biocpkg{SigCheck} is to compare the performance of a gene signature with the 
+performance of known gene signatures against the same data set. To accomplish 
+this, it includes several sets of known signatures. One of these included 
+signatures is the van't Veer signature, which we will use for this example.
+
+To load the known gene signatures that are included with \Biocpkg{SigCheck}:
+
+<<loadKnown, eval=TRUE, keep.source=TRUE>>=
+library(SigCheck)
+data(knownSignatures)
+names(knownSignatures)
+@
+
+There are three sets of gene signatures, including a set of cancer signatures.
+\footnote{See the Technical Notes section for information on how to obtain
+more signature lists.} 
+The van't Veer signature is one of the signatures in the known cancer 
+gene signature set:
+
+<<getVANTVEER, eval=TRUE, keep.source=TRUE>>=
+names(knownSignatures$cancer)
+vantveer <- knownSignatures$cancer$VANTVEER
+vantveer
+@
+
+The signature is provided in the form of symbolic gene names. These will need 
+to be matched up with the feature names in the \Robject{ExpressionSet}. 
+While the default annotation is a probe identifier, the \Rcode{nki} dataset
+provides a number of alternative annotations:
+
+<<showFeatureAnno, eval=TRUE, keep.source=TRUE>>=
+fvarLabels(nki)
+@
+
+We'll be using the \Rcode{"HUGO.gene-symbol"} to match the gene names in the 
+van't Veer signature.
+
+The final aspect of this dataset involve its division into 
+a training (or discovery) set of samples and a validation set of samples. 
+The training set should include all the samples
+that were used in deriving the gene signature.
+It is expected that the signature should perform optimally on these samples.
+A validation n set of samples that played no role in deriving the signature is
+required to test the efficacy of the signature.
+For the NKI dataset, the \Rcode{varLabel} named \Rcode{"series"} specifies which 
+samples were int he original trainingset, and which
+were profiled in the follow-on experiment:
+For this example, we will treat the first 100 samples as the training set.
+<<showSeries, eval=TRUE, keep.source=TRUE>>=
+table(nki$series)
+@
+\section{Example: Survival analysis}
+In this section, we will use the survival data to test the ability of the
+van't veer signature to predict outcome in the validation set. 
+The most straightforward way to accomplish this involved two function calls. 
+The first is a call to \Rfunction{sigCheck}, which sets up the experiment,
+establishes the baseline performance, generates Kaplan-Meier plots, and
+returns a newly constructed object of class \Robject{SigCheckObject}. 
+The second call, to \Rfunction{sigCheckAll}, runs a default series
+of tests before plotting and returning the results.
+
+\subsection{Call: \Rfunction{sigCheck}}
+
+The \Rfunction{sigCheck} function is the constructor 
+for \Robject{SigCheckObject}s. 
+It requires a number of parameters that are used to define the
+experimental data and signature.
+
+The first required parameter is \Rcode{expressionSet}, 
+an \Robject{ExpressionSet} object that contains all the experimental data. 
+In this example, \Rcode{expressionSet=nki}.
+The next required parameter is \Rcode{classes}, a character string indicating
+which of \Rcode{varLabels(expressionSet)} contains the binary class data. 
+In this example, \Rcode{classes=e.dmfs}.
+
+For a survival analysis, the \Rcode{survival} parameter indicates which 
+ of \Rcode{varLabels(expressionSet)} contains the numeric survival data.
+In this example, \Rcode{classes=t.dmfs}
+
+The \Rcode{signature} parameter contains the signature that will be checked. 
+This is most easily specified as a vector of feature names (ie gene IDs)
+that match features in the \Rcode{annotation} parameter. 
+The \Rcode{annotation} parameter specifies which of 
+\Rcode{fvarLabels(expressionSet)} contains the feature labels.
+In this example, \Rcode{signature=knownSignatures\$cancer\$VANTVEER}, and
+\Rcode{annotation="HUGO.gene.symbol"}.
+
+If the data are divided into training and validation samples, the samples 
+that comprise the validation set should be specified using
+the \Rcode{validationSamples} parameter.
+
+The remaining parameters are optional, with usable defaults, and will be 
+discussed in subsequent sections.
+
+Putting this all together, the call to set up the experiment is:
+<<sigCheckSurvival, fig=TRUE, include=FALSE, eval=TRUE, echo=TRUE,message=TRUE,warning=TRUE, width=10, height=8 >>=
+check <- sigCheck(nki, classes="e.dmfs", survival="t.dmfs",
+                  signature=knownSignatures$cancer$VANTVEER,
+                  annotation="HUGO.gene.symbol",
+                  validationSamples=which(nki$series=="NKI2")) 
+check
+@
+\incfig{SigCheck-sigCheckSurvival}{.99\textwidth}{Results of 
+\Rfunction{sigCheck} for NKI Breast Cancer dataset checking v'ant Veer 
+signature.}
+
+By default, this will generate two Kaplan-Meier plots, 
+as shown in Figure~\ref{SigCheck-sigCheckSurvival}.
+The first shows the
+performance on the training set, and the other shows performance on the validation
+set. The method that uses the signature to separate the samples
+into two groups, based on taking the first principal component 
+(as described in \cite{Venet2011}), is such that the High/Low groups can
+be flipped in the two charts without concern. 
+
+These plots show very strong performance on the training set, 
+with distinct (but reduced) separation on the validation set.
+Both p-values are reported as p<0.001.
+Examination of the resulting object shows the actual p-value computed for the
+validation set:
+
+<<survivalPval, eval=TRUE, keep.source=TRUE>>=
+check@survivalPval
+@
+
+\subsection{Call: \Rfunction{sigCheckAll}}
+
+From this analysis, it appears that the signature does indeed have power in
+distinguishing between two distinct survival groups. The next question is how
+unique these specific genes in the signature are for this task. the function
+\Rfunction{sigCheckAll} will run a series of checks for comparison purposes.
+In each check, some background performance distribution is computed, and the 
+performance of the signature is compared by calculating an empirical p-value.
+
+The four tests include a distribution of p-values computed using randomly selected 
+signature of the same size (number of features).
+This check can be run separately using \Rfunction{sigCheckRandom}.
+The second test compares the performance of this signature to a set of previously
+identified ones. 
+This check can be run separately using \Rfunction{sigCheckKnown}.
+The third and fourth tests compare performance of the signature on the dataset
+to permuted versions of the dataset; specifically permuting the \Rcode{class}
+\Rcode{survival} metadata, as well as permuting the feature data by randomly 
+re-assigning the expression values for each feature across the samples. 
+The permuted data/metadata check can be run separately 
+using \Rfunction{sigCheckPermuted}.
+
+The parameters to \Rfunction{sigCheckAll} include the \Robject{SigCheckObject}
+constructed by the previous call to \Rfunction{sigCheck}. 
+The \Rcode{iterations} parameter determines the size of the null 
+distribution for the random and permuted checks. 
+The \Rcode{known} parameter specifies a set of known signatures to use
+for the second check, with the default being the 48 cancer signatures 
+identified by \cite{Venet2011}.
+
+The number assigned to \Rcode{iterations} will determine the accuracy of the
+p-value calculated for the random and permuted tests.
+A value of at least 1000 is preferred to get a meaningful value:
+
+<<sigCheckAllSurvivalNoeval, eval=FALSE, keep.source=TRUE>>=
+nkiResults <- sigCheckAll(check, iterations=1000) 
+@
+
+As this vignette will take too long to run automatically with 
+\Rcode{iterations=1000}, the results have been pre-computed and 
+included as a data object
+with the \Biocpkg(SigCheck) package:
+
+<<loadResults, eval=TRUE, keep.source=TRUE>>=
+data(nkiResults)
+@
+
+By default, \Rfunction{sigCheckAll} will generate plots of the results.
+These can be re-generated using \Rfunction{sigCheckPlot}:
+<<sigCheckPlotSurvival, fig=TRUE, include=FALSE, width=12, height=8 >>=
+sigCheckPlot(nkiResults)
+@
+\incfig{SigCheck-sigCheckPlotSurvival}{.99\textwidth}{Results of 
+\Rfunction{sigCheckPlot} for NKI Breast Cancer dataset checking v'ant Veer 
+signature.}
+
+In each of the four plots, the background distribution is plotted, with 
+the x-axis representing survival p-values on a log 10 scale, and the y-axis 
+representing how many of the background tests produced p-values at that level.
+The solid red vertical line shows the performance of the signature being tested.
+The further to the left of the distribution this line is, the more uniquely
+it performs for this check. In some cases, if the performance of the 
+signature is far better than any in the background distribution, 
+this line will not be drawn. The vertical red dotted line shows where 
+a "significant" result (p=0.05) would lie relative to
+the background distribution.
+
+The upper-left plot shows performance of the v'ant veer signature relative to 1,000
+randomly chosen signature of comprised of an equal number of gene. The
+upper-right plot shows the performance compared to 48 known
+cancer prognostic signatures, while the two lower plot show performance
+on permuted data (survival and gene expression across each feature).
+
+The result returned by the call to \Rfunction{sigCheckAll} is a list of
+results for each test:
+<<sigCheckPlotSurvivalRes, eval=TRUE, keep.source=TRUE, echo=TRUE >>=
+names(nkiResults)
+@
+
+The adjusted p-value computed for each check can be retrieved as follows:
+<<sigCheckPlotSurvivalPvals, eval=TRUE, keep.source=TRUE, echo=TRUE >>=
+nkiResults$checkRandom$checkPval
+nkiResults$checkKnown$checkPval
+nkiResults$checkPermutedSurvival$checkPval
+nkiResults$checkPermutedFeatures$checkPval
+@
+
+\subsection{Scoring methods for dividing samples into survival groups}
+
+The survival analysis depends on a method for using the signature to divide
+the samples into survival groups before computing the p-value for how
+their survival times differ. 
+\Biocpkg{SigCheck} divides this task into two steps. 
+The first is to calculate a score for each sample based on the 
+feature values for each feature in the signature. The second step
+is to divide the samples into groups based on these scores. 
+
+
+\cite{Venet2011} discuss this issue,
+and recommend first determining the score for each sample by
+computing the first principal component of the expression matrix
+(using only the features in the signature). 
+They then suggest that the samples can be divided into two groups
+based on whether their score is above or below the median score.
+This is the default method used in \Biocpkg{SigCheck}.
+
+There are options for both the scoring and dividing steps.
+The scoring method is determined by the value of the parameter 
+\Rcode{scoreMethod} for the function \Rfunction{sigCheck}.
+The default value is \Rcode{"PCA1"}. 
+\Rcode{scoreMethod} may also
+be \Rcode{"High"}, which simply computes the mean expression value for 
+each sample across the signature. 
+This enables the samples to be divided into a "High" expression group
+and a "Low" expression group.
+Another option is to use a machine-learning classifier to do the scoring
+(\Rcode{scoreMethod="classifier"}); the next section discusses how to
+use classifiers in \Biocpkg{SigCheck}. 
+
+Finally, \Rcode{scoreMethod} can be
+set to a user-defined function if you want to do your own mapping of
+expression value to scores. 
+The user-defined scoring function should take an \Robject{ExpressionSet}
+as a parameter.
+This \Robject{ExpressionSet} will have as many rows as features that match
+the signature, and as many columns as there are samples 
+(either training or validation samples). 
+It should return a vector of scores, one for each sample.
+
+The second step is to use the scores to divide the samples into groups.
+The \Rcode{threshold} parameter controls how this is accomplished.
+Currently, the package only support division into either two or three groups, 
+determined by which samples have scores below the specified percentiles, 
+and which are greater than or equal to the specified percentile. 
+The default is to use the median as the threshold, which will 
+split the samples into two groups of approximately equal size.
+In many cases, however, the real power of a signature is not to split 
+the samples into two equal sized groups, but rather to
+identify a subset of samples that have a distinct outcome.
+Setting \Rcode{threshold=.66}, for example, will split the 
+samples into a larger group with two-thirds of the sample, and
+a smaller group containing the one-third of samples with the highest score.
+If you are using a score such as \Rcode{scoreMethod="High"}, these would
+be the samples with the highest mean expression over the signature, while
+setting \Rcode{scoreMethod=.33} would split off a smaller group of
+sample with the lowest mean expression.
+By specifying two percentile cutoffs, you can split the samples into three groups:
+one with high scores, one with low scores, and one with intermediate scores.
+The performance of the signature will computed using only the samples in the
+high and low groups. 
+
+To see how all this works, consider some alternative scoring and grouping methods
+for the sample data set. For example, we can see how the v'ant Veer signature 
+performs when looking at overall expression levels. 
+The code below takes advantage of the ability to create a new
+\Robject{SigCheckObject} from an existing one:
+
+<<sigCheckHi, fig=TRUE, include=FALSE, width=12, height=8 >>=
+par(mfrow=c(2,2))
+p5 <- sigCheck(check,
+              scoreMethod="High",threshold=.5,
+              plotTrainingKM=F)@survivalPval
+
+p66 <- sigCheck(check,
+              scoreMethod="High",threshold=.66,
+              plotTrainingKM=F)@survivalPval
+
+p33 <- sigCheck(check,
+              scoreMethod="High",threshold=.33,
+              plotTrainingKM=F)@survivalPval
+p33.66 <-sigCheck(check,
+              scoreMethod="High",threshold=c(.33,.66),
+              plotTrainingKM=F)@survivalPval
+p5
+p66
+p33
+p33.66
+@
+
+\incfig{SigCheck-sigCheckHi}{.99\textwidth}{Results of 
+\Rfunction{sigCheckPlot} for NKI Breast Cancer dataset checking v'ant Veer 
+signature, using "High" scoring method and different percentile cutoffs.}
+
+Figure~\ref{SigCheck-sigCheckHi} shows the baseline performance of the
+signature using different thresholds. 
+The one that splits off high and low expression groups, 
+and eliminates the middle samples, performs the best. 
+However to know how unique this performance is, the random and known checks
+would have to be repeated using exactly the same evaluation criteria
+as for the main signature.
+
+\section{Example: Classification Analysis}
+
+\Biocpkg{SigCheck} uses the \Biocpkg{MLInterfaces} package to enable a wide
+range of machine-learning algorithms to be applied to expression data.
+Classifiers constructed in this way use only the binary \Rcode{classes} metadata,
+and not the survival data, to predict what class each sample belongs to.
+
+Classifiers can be applied in two distinct ways: as a scoring method for
+determining survival groups, and for assessing the classification potential
+of signatures when survival data is unavailable.
+
+\subsection{Classifiers for scoring survival groups}
+
+As many classifiers generate a score for each sample 
+(representing, for example, the probability that a sample belongs to 
+a specific class), they can be used as the basis for dividing samples
+into survival groups that can be uses to assess survival analysis performance.
+This is accomplished by setting \Rcode{scoreMethod="classifier")} when
+invoking \Rfunction({sigCheck}).
+
+When specifying a classifier, the \Rcode{classifierMethod} parameter is
+used to determine what type of classifier is to be used. 
+This can be any classifier supported by the \Biocpkg{MLInterfaces} package.
+The default, \Rcode{svmI}, uses a Support Vector Machine.
+When invoked, the training set samples will be used to construct a classifier
+that distinguished between the two classes specified in the 
+\Rcode{classes} parameter.
+When the training set is divided into survival groups, the resulting classifier
+is used to generate scores for all the samples. These scores are then
+subjected to the \Rcode{threshold} parameter as with the other
+\Rcode{scoreMethod}s.
+
+To see this in action with the sample dataset, all that is required is to
+set \Rcode{scoreMethod="classifier"}:
+<<sigCheckSurvivalClass, fig=TRUE, include=FALSE, eval=TRUE, echo=TRUE,message=TRUE,warning=TRUE, width=10, height=8 >>=
+check <- sigCheck(check, scoreMethod="classifier") 
+check@survivalPval
+@
+\incfig{SigCheck-sigCheckSurvivalClass}{.99\textwidth}{Results of 
+\Rfunction{sigCheck} for NKI Breast Cancer dataset checking v'ant Veer 
+signature, using a Support Vector Machine to classify samples into
+survival groups.}
+
+\subsection{Checking classifier performance independently of survival}
+Another way of evaluating gene signatures is on how well they perform on 
+the classification task itself.
+For example, if the goals was to generate a gene signature to predict
+susceptibility to a disease, the distinction between those who developed the 
+disease and those who remain disease-free may be important than
+the associated timeframes.
+In some cases, only class data (recurrence/non recurrence; death/survival) may be
+available for the samples, and no real-valued timescales.
+
+In these cases (as well as cases where survival data are available but
+classification  is of interest), the classification abilities of
+a signature can be checked in similar manner to survival.
+
+To generate such an analysis, simply leave the \Rcode{survival} unspecified:
+<<sigCheckClassifier,include=FALSE,eval=TRUE,echo=TRUE,message=TRUE,warning=TRUE>>=
+check <- sigCheck(nki, classes="e.dmfs",
+                  signature=knownSignatures$cancer$VANTVEER,
+                  annotation="HUGO.gene.symbol",
+                  validationSamples=which(nki$series=="NKI2"),
+                  scoreMethod="classifier") 
+check
+@
+
+In this case, no Kaplan-Meier plots are generated as there is no survival data.
+The baseline classification performance can be examined:
+
+<<sigCheckClassifierStats, include=TRUE, eval=TRUE, echo=TRUE >>=
+check@sigPerformance
+check@modePerformance
+check@confusion
+@
+
+The first value is the percentage of validation samples correctly classified. 
+The second value is the percentage that would be correctly classified if
+the classifier just guess the most frequently observed class in the
+training set (the mode value).
+The third value is the confusion matrix, which shows how validation samples
+in each category were classified. 
+This can be interpreted in terms of True Negatives and False Positives 
+(first row), and False Negatives and True Positives (second row).
+
+The classification performance of the signature can be checked against the 
+performance of a background distribution of random or known signatures:
+
+<<sigCheckClassify, eval=FALSE, keep.source=TRUE>>=
+classifyRandom <- sigCheckRandom(check, iterations=1000)
+classifyKnown <- sigCheckKnown(check)
+@
+
+As with the previous checks, the results have been pre-computed to
+save computation time:
+<<loadClassifyResults, eval=TRUE, keep.source=TRUE>>=
+data(classifyResults)
+@
+
+The results can be plotted:
+<<sigClassifyPlot, fig=TRUE, include=FALSE, width=12, height=6 >>=
+par(mfrow=c(1,2))
+sigCheckPlot(classifyRandom, classifier=TRUE)
+sigCheckPlot(classifyKnown,  classifier=TRUE)
+@
+\incfig{SigCheck-sigClassifyPlot}{.99\textwidth}{Results of classifier 
+performance check against random and known signature for 
+NKI Breast Cancer dataset checking v'ant Veer 
+signature, using "High" scoring method and different percentile cutoffs.}
+
+Figure~\ref{SigCheck-sigClassifyPlot} shows the results of a classification 
+analysis. 
+The background distribution based on the classification performance
+of the random or known signatures, so they are the percentage of validation
+samples correctly classified.
+That mean for these plots, better performing signatures are
+toward the right on the x-axis (as opposed to the left for
+the survival analysis, which is measured in p-values).
+Also, the dotted red vertical line represent the3 performance of a mode 
+classifier. 
+It can be very useful to see what a classifier that
+always guesses the category more prevalent in the training set
+for comparison to a curated gene signature and a sophisticated
+machine learning algorithm.
+
+\subsection{Classification without a validation set: leave-one-out cross-validation}
+
+coming soon...
 
 \section{Technical notes}
+
+\subsection{Obtaining gene signatures from MSigDB}
+
+When checking a signature's performance against known signatures 
+(ie using the \Rfunction{sigCheckKnown} function), the gene
+signatures available at the Broad Institute's \Biocexptpkg{MSigDB} site 
+(part of \Biocexptpkg{GSEQ} \cite{MSigDB}). These are located at
+the following URL: \url{http://software.broadinstitute.org/gsea/downloads.jsp}.
+Note that you must first register and accept the licence terms,
+which is why the signatures are not distributed with this package.
+
+The gene sets can be downloaded in \Rcode{.gmt} format. 
+This can be read in using the \Rfunction{read.gmt} function
+from the \Biocpkg{qusage} package. 
+For example, if you download the oncogenic signatures file, you
+can retrieve the signatures as follows:
+
+<<MSigDBNoeval, eval=FALSE, keep.source=TRUE>>=
+c6.oncogenic <- read.gmt('c6.all.v5.0.symbols.gmt')
+check.c6 <- sigCheckKnown(check, c6.oncogenic)
+sigCheckPlot(check.c6)
+@
 
 \subsection{Use of \Biocpkg{BiocParallel} and \Rpackage{parallel}}
 
@@ -36,9 +586,9 @@ This note shows how to control the parallel processing in \Biocpkg{SigCheck}.
 
 There are two different aspects of \Biocpkg{SigCheck} that are able to exploit
 parallel processing. The primary one is when multiple signatures or datasets 
-are being evaluated independently. This include the \Rcode{nIterations} random
+are being evaluated independently. This include the \Rcode{iterations} random
 signatures in \Rfunction{sigCheckRandom}, the database of known signatures in 
-\Rfunction{sigCheckKnown}, and the \Rcode{nIterations} permuted datasets in 
+\Rfunction{sigCheckKnown}, and the \Rcode{iterations} permuted datasets in 
 \Rfunction{sigCheckPermuted}. In this case, the \Biocpkg{BiocParallel} package 
 is used to carry out these comparisons in parallel. By default, 
 \Biocpkg{BiocParallel} uses \Rpackage{parallel} to run in multicore mode, 
@@ -71,7 +621,7 @@ options(mc.cores=CoresToUse)
 
 Note that in the LOO-XV case, as every random or known signature, or permuted
 dataset, requires parallel evaluation of cross-validated classifiers, the
-parallelization at the level of \Rcode{nIterations} is disabled automatically.
+parallelization at the level of \Rcode{iterations} is disabled automatically.
 
 \section{Acknowledgements}
 
