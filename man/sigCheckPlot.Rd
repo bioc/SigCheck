@@ -36,8 +36,7 @@ and a dotted red line representing a p-value of 0.05.
 One or both of these may be missing if their performance falls outside the range
 of the background distributions.
 
-For results based on classification performance, a line plot version of a histogram
-of background performance is plotted, with the x-axis representing the 
+For results based on classification performance, the x-axis represents the 
 range of classification performance scores computed in the check, and the
 y-axis representing how many times that score was obtained. In addition, 
 vertical lines are plotted representing the classification performance of

@@ -2,9 +2,9 @@ Package: SigCheck
 Type: Package
 Title: Check a gene signature's prognostic performance against
         random signatures, known signatures, and permuted data/metadata
-Version: 2.2.0
+Version: 2.2.1
 Author:  Rory Stark <rory.stark@cruk.cam.ac.uk> and 
-         Justin Norden <jn333@cam.ac.uk>
+         Justin Norden
 Maintainer: Rory Stark <rory.stark@cruk.cam.ac.uk>
 Description: While gene signatures are frequently used to predict phenotypes
         (e.g. predict prognosis of cancer patients), it it not always
@@ -20,7 +20,7 @@ Description: While gene signatures are frequently used to predict phenotypes
         and c) permuted data and/or metadata.
 License: Artistic-2.0
 LazyLoad: yes
-Depends: R (>= 3.1.0), MLInterfaces, Biobase, e1071, BiocParallel, survival
+Depends: R (>= 3.2.1), MLInterfaces, Biobase, e1071, BiocParallel, survival
 Imports: graphics, stats, utils, methods
-Suggests: BiocStyle, breastCancerNKI
+Suggests: BiocStyle, breastCancerNKI, qusage
 biocViews: GeneExpression, Classification, GeneSetEnrichment

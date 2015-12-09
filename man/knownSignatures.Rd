@@ -47,7 +47,8 @@ breast cancer outcome." PLoS Computational Biology 7.10 (2011): e1002240.
 }
 
 \note{
-Other signatures of interest can be downlaoded at http://www.broad.mit.edu/gsea/downloads.jsp#msigdb.
+Other signatures of interest can be downloaded at http://www.broad.mit.edu/gsea/downloads.jsp#msigdb 
+and read in using the \code{read.gmt} function in the \code{qusage} package.
 }
 
 \examples{
