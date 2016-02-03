@@ -2,6 +2,18 @@
 \title{SigCheck News}
 \encoding{UTF-8}
 
+\section{Version 2.3.4}{
+ \itemize{
+  \item{Added nolegend parameter to sigCheckPlot}
+  }
+}
+
+\section{Version 2.3.3}{
+ \itemize{
+  \item{Added title parameter to sigCheckPlot}
+  \item{Updated nkiResults data object.}
+  }
+}
 
 \section{Version 2.3.1}{
  \itemize{

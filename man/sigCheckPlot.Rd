@@ -10,7 +10,8 @@ Plots results of a signature check, as returned by \code{\link{sigCheckRandom}},
 }
 
 \usage{
-sigCheckPlot(checkResults, classifier=FALSE, ...)
+sigCheckPlot(checkResults, classifier=FALSE, 
+             title, nolegend=FALSE, ...)
 }
 
 \arguments{
@@ -24,6 +25,13 @@ If a classifier was used in the original call to \code{\link{sigCheck}}, setting
 to \code{TRUE} will result in a plot showing how the primary signature compares
 based on classification performance (rather than survival).
 }
+\item{title}{
+Title string for plot. If missing, a default plot title will be generated.
+}
+\item{nolegend}{
+IF \code{TRUE}, no legend will be included with the plot(s).
+}
+
   \item{\dots}{
 Additional arguments to be passed to the \code{\link{plot}} function.
 }
