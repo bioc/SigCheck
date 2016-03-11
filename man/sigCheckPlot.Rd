@@ -37,7 +37,7 @@ Additional arguments to be passed to the \code{\link{plot}} function.
 }
 }
 \details{
-For results based on survival analysis, the background distribution of p-values
+For results based on survival analysis, the background distribution of p-values (in \code{1-log10()} format)
 derived from the check (either random signatures, known signatures, or performance
 using permuted data) is plotted. Up to two vertical red lines are also plotted: a solid red line representing the performance of the primary signature/data, 
 and a dotted red line representing a p-value of 0.05. 
@@ -60,10 +60,10 @@ none
 }
 
 \note{
-For survival results, better performance results in the solid red line being to the left of the background distribution, indicating a lower-value.
-For classification results, better performance results in the solid red line being to
-the right of the background distribution, indicating superior classification
-performance.
+Better formance of the signature being checked results in the solid red line 
+being to the right of the background distribution.
+For survival results, this indicates a lower-value.
+For classification results,this indicates superior classification performance.
 }
 \author{
 Rory Stark with Justin Norden
@@ -86,7 +86,7 @@ library(breastCancerNKI)
 data(nki)
 nki <- nki[,!is.na(nki$e.dmfs)]
 data(knownSignatures)
-ITERATIONS <- 5 # should be at least 20, 1000 for real checks
+ITERATIONS <- 5 # should be at least 1000 for real checks
 
 ## survival analysis with separate training and validation using SVM
 check <- sigCheck(nki, classes="e.dmfs", survival="t.dmfs",

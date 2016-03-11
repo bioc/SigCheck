@@ -293,12 +293,12 @@ sigCheckPlot(nkiResults)
 signature.}
 
 In each of the four plots, the background distribution is plotted, with 
-the x-axis representing survival p-values on a log 10 scale, and the y-axis 
+the x-axis representing survival p-values on a -log 10 scale, and the y-axis 
 representing how many of the background tests produced p-values at that level.
 The solid red vertical line shows the performance of the signature being tested.
-The further to the left of the distribution this line is, the more uniquely
+The further to the right of the distribution this line is, the more uniquely
 it performs for this check. In some cases, if the performance of the 
-signature is far better than any in the background distribution, 
+signature is out fo the range of the background distribution, 
 this line will not be drawn. The vertical red dotted line shows where 
 a "significant" result (p=0.05) would lie relative to
 the background distribution.
@@ -306,7 +306,7 @@ the background distribution.
 The upper-left plot shows performance of the v'ant veer signature relative to 1,000
 randomly chosen signature of comprised of an equal number of gene. The
 upper-right plot shows the performance compared to 48 known
-cancer prognostic signatures, while the two lower plot show performance
+cancer prognostic signatures, while the two lower plots show performance
 on permuted data (survival and gene expression across each feature).
 
 The result returned by the call to \Rfunction{sigCheckAll} is a list of
@@ -542,10 +542,9 @@ analysis.
 The background distribution based on the classification performance
 of the random or known signatures, so they are the percentage of validation
 samples correctly classified.
-That mean for these plots, better performing signatures are
-toward the right on the x-axis (as opposed to the left for
-the survival analysis, which is measured in p-values).
-Also, the dotted red vertical line represent the3 performance of a mode 
+That means that for these plots, better performing signatures are
+toward the right on the x-axis.
+Also, the dotted red vertical line represents the performance of a mode 
 classifier. 
 It can be very useful to see what a classifier that
 always guesses the category more prevalent in the training set
