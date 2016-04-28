@@ -2,22 +2,13 @@
 \title{SigCheck News}
 \encoding{UTF-8}
 
-\section{Version 2.3.4}{
- \itemize{
-  \item{Added nolegend parameter to sigCheckPlot}
-  }
-}
 
-\section{Version 2.3.3}{
+\section{Version 2.4}{
  \itemize{
+  \item{Changed main plots to use -log10(p) as X axis}
+  \item{Added nolegend parameter to sigCheckPlot}
   \item{Added title parameter to sigCheckPlot}
   \item{Updated nkiResults data object.}
-  }
-}
-
-\section{Version 2.3.1}{
- \itemize{
-  \item{NOTE: Version 2.3.0 is a regression. The package is restored in 2.3.1.}
   \item{Section added to vignette explaining how to get signatures from MSigDB.}
   }
 }

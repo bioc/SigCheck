@@ -64,3 +64,8 @@ importFrom(survival, Surv, survfit, survdiff)
 importFrom(e1071, svm)
 
 import(methods)
+
+importFrom("graphics", "plot", "text")
+
+importFrom("stats", "density", "median", "pchisq", "prcomp",
+             "quantile")
