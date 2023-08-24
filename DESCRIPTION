@@ -2,10 +2,10 @@ Package: SigCheck
 Type: Package
 Title: Check a gene signature's prognostic performance against
         random signatures, known signatures, and permuted data/metadata
-Version: 2.33.0
-Author:  Rory Stark <rory.stark@cruk.cam.ac.uk> and 
+Version: 2.33.1
+Author:  Rory Stark <bioconductor@starkhome.com> and 
          Justin Norden 
-Maintainer: Rory Stark <rory.stark@cruk.cam.ac.uk>
+Maintainer: Rory Stark <bioconductor@starkhome.com>
 Description: While gene signatures are frequently used to predict phenotypes
         (e.g. predict prognosis of cancer patients), it it not always
         clear how optimal or meaningful they are (cf David Venet,
