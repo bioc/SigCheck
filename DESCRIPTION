@@ -20,7 +20,7 @@ Description: While gene signatures are frequently used to predict phenotypes
         and c) permuted data and/or metadata.
 License: Artistic-2.0
 LazyLoad: yes
-Depends: R (>= 3.2.0), MLInterfaces, Biobase, e1071, BiocParallel, survival
+Depends: R (>= 4.0.0), MLInterfaces, Biobase, e1071, BiocParallel, survival
 Imports: graphics, stats, utils, methods
 Suggests: BiocStyle, breastCancerNKI, qusage
 biocViews: GeneExpression, Classification, GeneSetEnrichment
