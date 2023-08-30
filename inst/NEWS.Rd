@@ -3,6 +3,12 @@
 \encoding{UTF-8}
 
 
+\section{Version 2.32.1}{
+ \itemize{
+  \item{Change Rory emails}
+ }
+}
+
 \section{Version 2.4}{
  \itemize{
   \item{Changed main plots to use -log10(p) as X axis}
