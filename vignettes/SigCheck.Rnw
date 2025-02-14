@@ -66,6 +66,7 @@ predicts the likelihood that a patient will develop a distant metastases
 The dataset can be loaded as follows:
 <<loadData, eval=TRUE, keep.source=TRUE>>=
 library(breastCancerNKI)
+library(Biobase)
 data(nki)
 nki
 @
